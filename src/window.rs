@@ -1,0 +1,332 @@
+use smithay_client_toolkit::{
+    activation::{ActivationHandler, ActivationState, RequestData},
+    compositor::CompositorHandler,
+    delegate_activation, delegate_compositor, delegate_keyboard, delegate_layer, delegate_output,
+    delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
+    output::{OutputHandler, OutputState},
+    reexports::{
+        calloop::LoopHandle,
+        client::{
+            Connection, QueueHandle,
+            protocol::{wl_keyboard::WlKeyboard, wl_pointer::WlPointer, wl_shm},
+        },
+    },
+    registry::{ProvidesRegistryState, RegistryState},
+    registry_handlers,
+    seat::{
+        Capability, SeatHandler, SeatState,
+        keyboard::{KeyboardHandler, Keysym},
+        pointer::PointerHandler,
+    },
+    shell::{
+        WaylandSurface,
+        wlr_layer::{LayerShellHandler, LayerSurface},
+    },
+    shm::{
+        Shm, ShmHandler,
+        slot::{Buffer, SlotPool},
+    },
+};
+
+pub struct HUDWindow {
+    pub should_close: bool,
+
+    pub registry_state: RegistryState,
+    pub seat_state: SeatState,
+    pub output_state: OutputState,
+    pub shm: Shm,
+    pub pool: SlotPool,
+    pub layer_surface: LayerSurface,
+    pub loop_handle: LoopHandle<'static, HUDWindow>,
+
+    pub keyboard: Option<WlKeyboard>,
+    pub pointer: Option<WlPointer>,
+
+    pub width: u32,
+    pub height: u32,
+    pub buffer: Option<Buffer>,
+}
+
+impl CompositorHandler for HUDWindow {
+    fn scale_factor_changed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _new_factor: i32,
+    ) {
+    }
+
+    fn transform_changed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _new_transform: smithay_client_toolkit::reexports::client::protocol::wl_output::Transform,
+    ) {
+    }
+
+    fn frame(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _time: u32,
+    ) {
+        // redraw callback
+    }
+
+    fn surface_enter(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
+
+    fn surface_leave(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
+}
+
+impl KeyboardHandler for HUDWindow {
+    fn enter(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        serial: u32,
+        raw: &[u32],
+        keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym],
+    ) {
+    }
+
+    fn leave(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        serial: u32,
+    ) {
+        self.should_close = true;
+    }
+
+    fn press_key(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        serial: u32,
+        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+    ) {
+        if event.keysym == Keysym::Escape {
+            self.should_close = true;
+        }
+    }
+
+    fn repeat_key(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        serial: u32,
+        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+    ) {
+    }
+
+    fn release_key(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        serial: u32,
+        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+    ) {
+    }
+
+    fn update_modifiers(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        serial: u32,
+        modifiers: smithay_client_toolkit::seat::keyboard::Modifiers,
+        raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
+        layout: u32,
+    ) {
+    }
+}
+
+impl PointerHandler for HUDWindow {
+    fn pointer_frame(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        pointer: &smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer,
+        events: &[smithay_client_toolkit::seat::pointer::PointerEvent],
+    ) {
+    }
+}
+
+impl SeatHandler for HUDWindow {
+    fn seat_state(&mut self) -> &mut smithay_client_toolkit::seat::SeatState {
+        &mut self.seat_state
+    }
+
+    fn new_seat(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+    ) {
+    }
+
+    fn new_capability(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+        capability: smithay_client_toolkit::seat::Capability,
+    ) {
+        if capability == Capability::Keyboard {
+            self.keyboard = Some(self.seat_state.get_keyboard(qh, &seat, None).unwrap());
+        } else if capability == Capability::Pointer {
+            self.pointer = Some(self.seat_state.get_pointer(qh, &seat).unwrap())
+        }
+    }
+
+    fn remove_capability(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+        capability: smithay_client_toolkit::seat::Capability,
+    ) {
+    }
+
+    fn remove_seat(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+    ) {
+    }
+}
+
+impl OutputHandler for HUDWindow {
+    fn output_state(&mut self) -> &mut smithay_client_toolkit::output::OutputState {
+        &mut self.output_state
+    }
+
+    fn new_output(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
+
+    fn update_output(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
+
+    fn output_destroyed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
+}
+
+impl ShmHandler for HUDWindow {
+    fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
+        &mut self.shm
+    }
+}
+
+impl ProvidesRegistryState for HUDWindow {
+    fn registry(&mut self) -> &mut smithay_client_toolkit::registry::RegistryState {
+        &mut self.registry_state
+    }
+
+    registry_handlers![OutputState, SeatState,];
+}
+
+impl LayerShellHandler for HUDWindow {
+    fn closed(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
+    ) {
+        // nothing needed to destroy...
+    }
+
+    fn configure(
+        &mut self,
+        conn: &Connection,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
+        configure: smithay_client_toolkit::shell::wlr_layer::LayerSurfaceConfigure,
+        serial: u32,
+    ) {
+        self.buffer = None;
+        self.width = configure.new_size.0;
+        self.height = configure.new_size.1;
+        self.draw(qh);
+    }
+}
+
+impl HUDWindow {
+    pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+        let buffer = self.buffer.get_or_insert_with(|| {
+            self.pool
+                .create_buffer(
+                    self.width as i32,
+                    self.height as i32,
+                    self.width as i32 * 4,
+                    wl_shm::Format::Argb8888,
+                )
+                .unwrap()
+                .0
+        });
+
+        {
+            let canvas = self.pool.canvas(buffer).unwrap();
+            canvas.iter_mut().for_each(|b| {
+                *b = 64;
+            });
+        }
+
+        self.layer_surface
+            .wl_surface()
+            .damage_buffer(0, 0, self.width as i32, self.height as i32);
+        self.layer_surface
+            .wl_surface()
+            .frame(qh, self.layer_surface.wl_surface().clone());
+        buffer.attach_to(self.layer_surface.wl_surface()).unwrap();
+        self.layer_surface.commit();
+    }
+}
+
+delegate_compositor!(HUDWindow);
+delegate_output!(HUDWindow);
+delegate_shm!(HUDWindow);
+delegate_seat!(HUDWindow);
+delegate_keyboard!(HUDWindow);
+delegate_pointer!(HUDWindow);
+delegate_registry!(HUDWindow);
+delegate_layer!(HUDWindow);
