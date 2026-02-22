@@ -1,3 +1,4 @@
+use skia_safe::ImageInfo;
 use smithay_client_toolkit::{
     activation::{ActivationHandler, ActivationState, RequestData},
     compositor::CompositorHandler,
@@ -287,38 +288,6 @@ impl LayerShellHandler for HUDWindow {
         self.width = configure.new_size.0;
         self.height = configure.new_size.1;
         self.draw(qh);
-    }
-}
-
-impl HUDWindow {
-    pub fn draw(&mut self, qh: &QueueHandle<Self>) {
-        let buffer = self.buffer.get_or_insert_with(|| {
-            self.pool
-                .create_buffer(
-                    self.width as i32,
-                    self.height as i32,
-                    self.width as i32 * 4,
-                    wl_shm::Format::Argb8888,
-                )
-                .unwrap()
-                .0
-        });
-
-        {
-            let canvas = self.pool.canvas(buffer).unwrap();
-            canvas.iter_mut().for_each(|b| {
-                *b = 64;
-            });
-        }
-
-        self.layer_surface
-            .wl_surface()
-            .damage_buffer(0, 0, self.width as i32, self.height as i32);
-        self.layer_surface
-            .wl_surface()
-            .frame(qh, self.layer_surface.wl_surface().clone());
-        buffer.attach_to(self.layer_surface.wl_surface()).unwrap();
-        self.layer_surface.commit();
     }
 }
 

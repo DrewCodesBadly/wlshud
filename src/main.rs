@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use skia_safe::ImageInfo;
 use smithay_client_toolkit::{
-    activation::{ActivationState, RequestData},
     compositor::CompositorState,
     output::OutputState,
     reexports::{
@@ -14,13 +14,13 @@ use smithay_client_toolkit::{
     shell::{
         WaylandSurface,
         wlr_layer::{Anchor, LayerShell},
-        xdg::XdgShell,
     },
     shm::{Shm, slot::SlotPool},
 };
 
 use crate::window::HUDWindow;
 
+mod rendering;
 mod window;
 
 fn main() {
