@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use skia_safe::ImageInfo;
 use smithay_client_toolkit::{
     compositor::CompositorState,
     output::OutputState,

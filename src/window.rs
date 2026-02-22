@@ -1,15 +1,12 @@
-use skia_safe::ImageInfo;
 use smithay_client_toolkit::{
-    activation::{ActivationHandler, ActivationState, RequestData},
-    compositor::CompositorHandler,
-    delegate_activation, delegate_compositor, delegate_keyboard, delegate_layer, delegate_output,
+    compositor::CompositorHandler, delegate_compositor, delegate_keyboard, delegate_layer, delegate_output,
     delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     reexports::{
         calloop::LoopHandle,
         client::{
-            Connection, QueueHandle,
-            protocol::{wl_keyboard::WlKeyboard, wl_pointer::WlPointer, wl_shm},
+            Connection,
+            protocol::{wl_keyboard::WlKeyboard, wl_pointer::WlPointer},
         },
     },
     registry::{ProvidesRegistryState, RegistryState},
@@ -19,10 +16,7 @@ use smithay_client_toolkit::{
         keyboard::{KeyboardHandler, Keysym},
         pointer::PointerHandler,
     },
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerShellHandler, LayerSurface},
-    },
+    shell::wlr_layer::{LayerShellHandler, LayerSurface},
     shm::{
         Shm, ShmHandler,
         slot::{Buffer, SlotPool},
@@ -99,33 +93,33 @@ impl CompositorHandler for HUDWindow {
 impl KeyboardHandler for HUDWindow {
     fn enter(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        serial: u32,
-        raw: &[u32],
-        keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym],
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _serial: u32,
+        _raw: &[u32],
+        _keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym],
     ) {
     }
 
     fn leave(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        serial: u32,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _serial: u32,
     ) {
         self.should_close = true;
     }
 
     fn press_key(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        serial: u32,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
         event: smithay_client_toolkit::seat::keyboard::KeyEvent,
     ) {
         if event.keysym == Keysym::Escape {
@@ -135,33 +129,33 @@ impl KeyboardHandler for HUDWindow {
 
     fn repeat_key(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        serial: u32,
-        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        _event: smithay_client_toolkit::seat::keyboard::KeyEvent,
     ) {
     }
 
     fn release_key(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        serial: u32,
-        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        _event: smithay_client_toolkit::seat::keyboard::KeyEvent,
     ) {
     }
 
     fn update_modifiers(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        serial: u32,
-        modifiers: smithay_client_toolkit::seat::keyboard::Modifiers,
-        raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
-        layout: u32,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        _modifiers: smithay_client_toolkit::seat::keyboard::Modifiers,
+        _raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
+        _layout: u32,
     ) {
     }
 }
@@ -169,10 +163,10 @@ impl KeyboardHandler for HUDWindow {
 impl PointerHandler for HUDWindow {
     fn pointer_frame(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        pointer: &smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer,
-        events: &[smithay_client_toolkit::seat::pointer::PointerEvent],
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _pointer: &smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer,
+        _events: &[smithay_client_toolkit::seat::pointer::PointerEvent],
     ) {
     }
 }
@@ -184,15 +178,15 @@ impl SeatHandler for HUDWindow {
 
     fn new_seat(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
     ) {
     }
 
     fn new_capability(
         &mut self,
-        conn: &Connection,
+        _conn: &Connection,
         qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
         seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
         capability: smithay_client_toolkit::seat::Capability,
@@ -206,18 +200,18 @@ impl SeatHandler for HUDWindow {
 
     fn remove_capability(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
-        capability: smithay_client_toolkit::seat::Capability,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+        _capability: smithay_client_toolkit::seat::Capability,
     ) {
     }
 
     fn remove_seat(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
     ) {
     }
 }
@@ -269,20 +263,20 @@ impl ProvidesRegistryState for HUDWindow {
 impl LayerShellHandler for HUDWindow {
     fn closed(
         &mut self,
-        conn: &Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
+        _conn: &Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
     ) {
         // nothing needed to destroy...
     }
 
     fn configure(
         &mut self,
-        conn: &Connection,
+        _conn: &Connection,
         qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
+        _layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
         configure: smithay_client_toolkit::shell::wlr_layer::LayerSurfaceConfigure,
-        serial: u32,
+        _serial: u32,
     ) {
         self.buffer = None;
         self.width = configure.new_size.0;
