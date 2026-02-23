@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use smithay_client_toolkit::{
     compositor::CompositorState,
@@ -17,7 +17,7 @@ use smithay_client_toolkit::{
     shm::{Shm, slot::SlotPool},
 };
 
-use crate::window::HUDWindow;
+use crate::{rendering::create_app_fade_tween, window::HUDWindow};
 
 mod rendering;
 mod window;
@@ -70,6 +70,14 @@ fn main() {
         buffer: None,
 
         should_close: false,
+        in_closing_animation: false,
+
+        last_frame_time: Instant::now(),
+        input_string: String::new(),
+        input_override: None,
+
+        app_fade_tweener: create_app_fade_tween(0., 1.),
+        app_fade_pos: 0.,
     };
 
     // Run main event loop

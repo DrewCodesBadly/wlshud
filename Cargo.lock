@@ -797,6 +797,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 
 [[package]]
+name = "tween"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7311599fedb85d1a45d3feb4e27a98e502316b6e2897f0617e05a2a5848f7754"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -947,6 +953,7 @@ version = "0.1.0"
 dependencies = [
  "skia-safe",
  "smithay-client-toolkit",
+ "tween",
 ]
 
 [[package]]

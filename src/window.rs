@@ -1,6 +1,9 @@
+use std::time::Instant;
+
 use smithay_client_toolkit::{
-    compositor::CompositorHandler, delegate_compositor, delegate_keyboard, delegate_layer, delegate_output,
-    delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
+    compositor::CompositorHandler,
+    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
+    delegate_registry, delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     reexports::{
         calloop::LoopHandle,
@@ -22,9 +25,15 @@ use smithay_client_toolkit::{
         slot::{Buffer, SlotPool},
     },
 };
+use tween::Tweener;
+
+use crate::rendering::FadeTweenType;
 
 pub struct HUDWindow {
     pub should_close: bool,
+    pub in_closing_animation: bool,
+    pub app_fade_tweener: Tweener<f32, f64, FadeTweenType>,
+    pub app_fade_pos: f32,
 
     pub registry_state: RegistryState,
     pub seat_state: SeatState,
@@ -40,6 +49,10 @@ pub struct HUDWindow {
     pub width: u32,
     pub height: u32,
     pub buffer: Option<Buffer>,
+    pub last_frame_time: Instant,
+
+    pub input_string: String,
+    pub input_override: Option<()>,
 }
 
 impl CompositorHandler for HUDWindow {
@@ -64,11 +77,11 @@ impl CompositorHandler for HUDWindow {
     fn frame(
         &mut self,
         _conn: &Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
         _time: u32,
     ) {
-        // redraw callback
+        self.draw(qh);
     }
 
     fn surface_enter(
@@ -122,8 +135,14 @@ impl KeyboardHandler for HUDWindow {
         _serial: u32,
         event: smithay_client_toolkit::seat::keyboard::KeyEvent,
     ) {
-        if event.keysym == Keysym::Escape {
-            self.should_close = true;
+        // All inputs are ignored while closing.
+        if !self.in_closing_animation {
+            if let Some(_) = self.input_override {
+            } else {
+                if event.keysym == Keysym::Escape {
+                    self.start_closing_animation();
+                }
+            }
         }
     }
 
