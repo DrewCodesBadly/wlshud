@@ -17,7 +17,10 @@ use smithay_client_toolkit::{
     shm::{Shm, slot::SlotPool},
 };
 
-use crate::{rendering::create_app_fade_tween, window::HUDWindow};
+use crate::{
+    rendering::{create_app_fade_tween, layout::AppState},
+    window::HUDWindow,
+};
 
 mod rendering;
 mod window;
@@ -78,6 +81,8 @@ fn main() {
 
         app_fade_tweener: create_app_fade_tween(0., 1.),
         app_fade_pos: 0.,
+
+        app_state: AppState::default(),
     };
 
     // Run main event loop

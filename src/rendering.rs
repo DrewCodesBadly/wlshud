@@ -1,6 +1,7 @@
+use crate::rendering::layout::Widget;
 use std::time::Instant;
 
-use skia_safe::{BlendMode, Canvas, Color4f, ColorSpace, ImageInfo};
+use skia_safe::{BlendMode, Canvas, Color4f, ColorSpace, ImageInfo, Paint, Rect};
 use smithay_client_toolkit::{
     reexports::client::{QueueHandle, protocol::wl_shm},
     shell::WaylandSurface,
@@ -8,6 +9,8 @@ use smithay_client_toolkit::{
 use tween::{CubicOut, Tweener};
 
 use crate::window::HUDWindow;
+
+pub mod layout;
 
 const BACKGROUND_ALPHA: f32 = 0.5;
 
@@ -18,8 +21,16 @@ pub fn create_app_fade_tween(start: f32, end: f32) -> Tweener<f32, f64, FadeTwee
 
 impl HUDWindow {
     pub fn start_closing_animation(&mut self) {
+        if self.in_closing_animation {
+            return;
+        }
+
         self.in_closing_animation = true;
         self.app_fade_tweener = create_app_fade_tween(self.app_fade_pos, 0.);
+        // will be committed next redraw
+        self.layer_surface.set_keyboard_interactivity(
+            smithay_client_toolkit::shell::wlr_layer::KeyboardInteractivity::None,
+        );
     }
 
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
@@ -70,9 +81,16 @@ impl HUDWindow {
                 ColorSpace::new_srgb(),
             );
             let sk_canvas = Canvas::from_raster_direct(&img_info, canvas, None, None).unwrap();
+            let mut paint = Paint::default();
+            paint.set_anti_alias(true);
 
             // draw...
             sk_canvas.clear(Color4f::new(0., 0., 0., BACKGROUND_ALPHA));
+            self.app_state.draw(
+                &sk_canvas,
+                &mut paint,
+                Rect::from_wh(self.width as f32, self.height as f32),
+            );
 
             // Multiplies by the fade animation amount.
             sk_canvas.draw_color(

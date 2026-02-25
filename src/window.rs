@@ -27,7 +27,7 @@ use smithay_client_toolkit::{
 };
 use tween::Tweener;
 
-use crate::rendering::FadeTweenType;
+use crate::rendering::{FadeTweenType, layout::AppState};
 
 pub struct HUDWindow {
     pub should_close: bool,
@@ -53,6 +53,8 @@ pub struct HUDWindow {
 
     pub input_string: String,
     pub input_override: Option<()>,
+
+    pub app_state: AppState,
 }
 
 impl CompositorHandler for HUDWindow {
@@ -124,7 +126,7 @@ impl KeyboardHandler for HUDWindow {
         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
         _serial: u32,
     ) {
-        self.should_close = true;
+        self.start_closing_animation();
     }
 
     fn press_key(
