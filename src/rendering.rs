@@ -1,12 +1,12 @@
 use crate::rendering::layout::Widget;
-use std::time::Instant;
+use std::{cell::Cell, collections::HashMap, hash::Hash, rc::Rc, time::Instant};
 
 use skia_safe::{BlendMode, Canvas, Color4f, ColorSpace, ImageInfo, Paint, Rect};
 use smithay_client_toolkit::{
     reexports::client::{QueueHandle, protocol::wl_shm},
     shell::WaylandSurface,
 };
-use tween::{CubicOut, Tweener};
+use tween::{CubicOut, Tween, Tweener};
 
 use crate::window::HUDWindow;
 
@@ -17,6 +17,40 @@ const BACKGROUND_ALPHA: f32 = 0.5;
 pub type FadeTweenType = CubicOut;
 pub fn create_app_fade_tween(start: f32, end: f32) -> Tweener<f32, f64, FadeTweenType> {
     Tweener::new(start, end, 0.2, FadeTweenType::new())
+}
+
+pub type AnimatedValue = Rc<Cell<f32>>;
+struct Animation {
+    val: AnimatedValue,
+    tweener: Tweener<f32, f64, Box<dyn Tween<f32>>>,
+}
+
+#[derive(Default)]
+pub struct AppContext {
+    animations: Vec<Animation>,
+}
+
+impl AppContext {
+    pub fn update_animations(&mut self, delta: f64) {
+        // retains only animations which are currently ongoing.
+        self.animations.retain_mut(|a| {
+            a.val.set(a.tweener.move_by(delta));
+            !a.tweener.is_finished()
+        });
+    }
+
+    pub fn add_animation(
+        &mut self,
+        val: AnimatedValue,
+        tweener: Tweener<f32, f64, Box<dyn Tween<f32>>>,
+    ) {
+        val.set(tweener.initial_value());
+        if let Some(a) = self.animations.iter_mut().find(|a| a.val == val) {
+            a.tweener = tweener;
+        } else {
+            self.animations.push(Animation { val, tweener });
+        }
+    }
 }
 
 impl HUDWindow {
@@ -43,6 +77,7 @@ impl HUDWindow {
             self.should_close = true;
             return;
         }
+        self.app_context.update_animations(frame_delta);
 
         let buffer = self.buffer.get_or_insert_with(|| {
             self.pool
@@ -86,10 +121,11 @@ impl HUDWindow {
 
             // draw...
             sk_canvas.clear(Color4f::new(0., 0., 0., BACKGROUND_ALPHA));
-            self.app_state.draw(
+            self.app_layout.draw(
                 &sk_canvas,
                 &mut paint,
                 Rect::from_wh(self.width as f32, self.height as f32),
+                &mut self.app_context,
             );
 
             // Multiplies by the fade animation amount.

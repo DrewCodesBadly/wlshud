@@ -18,7 +18,7 @@ use smithay_client_toolkit::{
 };
 
 use crate::{
-    rendering::{create_app_fade_tween, layout::AppState},
+    rendering::{AppContext, create_app_fade_tween, layout::AppLayout},
     window::HUDWindow,
 };
 
@@ -82,8 +82,12 @@ fn main() {
         app_fade_tweener: create_app_fade_tween(0., 1.),
         app_fade_pos: 0.,
 
-        app_state: AppState::default(),
+        app_layout: AppLayout::default(),
+        app_context: AppContext::default(),
     };
+
+    // Run startup callback
+    window.app_layout.on_startup(&mut window.app_context);
 
     // Run main event loop
     loop {

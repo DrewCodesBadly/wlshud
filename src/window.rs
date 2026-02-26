@@ -27,7 +27,7 @@ use smithay_client_toolkit::{
 };
 use tween::Tweener;
 
-use crate::rendering::{FadeTweenType, layout::AppState};
+use crate::rendering::{AppContext, FadeTweenType, layout::AppLayout};
 
 pub struct HUDWindow {
     pub should_close: bool,
@@ -54,7 +54,8 @@ pub struct HUDWindow {
     pub input_string: String,
     pub input_override: Option<()>,
 
-    pub app_state: AppState,
+    pub app_layout: AppLayout,
+    pub app_context: AppContext,
 }
 
 impl CompositorHandler for HUDWindow {
