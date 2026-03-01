@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::mpsc::Receiver, time::Instant};
 
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
@@ -27,7 +27,10 @@ use smithay_client_toolkit::{
 };
 use tween::Tweener;
 
-use crate::rendering::{AppContext, FadeTweenType, layout::AppLayout};
+use crate::{
+    rendering::{AppContext, FadeTweenType, layout::AppLayout},
+    searching::SearchResults,
+};
 
 pub struct HUDWindow {
     pub should_close: bool,
@@ -41,7 +44,6 @@ pub struct HUDWindow {
     pub shm: Shm,
     pub pool: SlotPool,
     pub layer_surface: LayerSurface,
-    pub loop_handle: LoopHandle<'static, HUDWindow>,
 
     pub keyboard: Option<WlKeyboard>,
     pub pointer: Option<WlPointer>,
@@ -51,11 +53,9 @@ pub struct HUDWindow {
     pub buffer: Option<Buffer>,
     pub last_frame_time: Instant,
 
-    pub input_string: String,
-    pub input_override: Option<()>,
-
     pub app_layout: AppLayout,
     pub app_context: AppContext,
+    pub search_results_receiver: Receiver<SearchResults>,
 }
 
 impl CompositorHandler for HUDWindow {
@@ -140,11 +140,10 @@ impl KeyboardHandler for HUDWindow {
     ) {
         // All inputs are ignored while closing.
         if !self.in_closing_animation {
-            if let Some(_) = self.input_override {
+            if event.keysym == Keysym::Escape {
+                self.start_closing_animation();
             } else {
-                if event.keysym == Keysym::Escape {
-                    self.start_closing_animation();
-                }
+                self.app_context.handle_key_press(event);
             }
         }
     }
@@ -155,8 +154,11 @@ impl KeyboardHandler for HUDWindow {
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
         _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
         _serial: u32,
-        _event: smithay_client_toolkit::seat::keyboard::KeyEvent,
+        event: smithay_client_toolkit::seat::keyboard::KeyEvent,
     ) {
+        if !self.in_closing_animation {
+            self.app_context.handle_key_press(event);
+        }
     }
 
     fn release_key(

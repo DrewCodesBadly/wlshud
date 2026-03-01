@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-skia-safe = "0.93.0"
+freedesktop-desktop-entry = "0.8.1"
+freedesktop-icons = "0.4.0"
+freedesktop_entry_parser = "2.0.1"
+rust-fuzzy-search = "0.1.1"
+serde = "1.0.228"
+skia-safe = { version = "0.93.0", features = ["textlayout"] }
 smithay-client-toolkit = "0.20.0"
+tokio = { version = "1.49.0", features = ["full"] }
 tween = "2.1.0"

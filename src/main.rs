@@ -1,4 +1,8 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::mpsc,
+    thread::{self},
+    time::{Duration, Instant},
+};
 
 use smithay_client_toolkit::{
     compositor::CompositorState,
@@ -19,13 +23,21 @@ use smithay_client_toolkit::{
 
 use crate::{
     rendering::{AppContext, create_app_fade_tween, layout::AppLayout},
+    searching::{SearchResults, searching_thread},
     window::HUDWindow,
 };
 
+mod config;
 mod rendering;
+mod searching;
 mod window;
 
 fn main() {
+    // Spawn searcher thread
+    // let search_results = SearchResults::default();
+    let (results_send, results_recv) = mpsc::channel();
+    let (query_send, query_recv) = mpsc::channel();
+
     let conn = Connection::connect_to_env().unwrap();
     let (globals, event_queue) = registry_queue_init(&conn).unwrap();
     let qh = event_queue.handle();
@@ -60,7 +72,6 @@ fn main() {
         shm,
         pool,
         layer_surface,
-        loop_handle,
 
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
@@ -76,15 +87,17 @@ fn main() {
         in_closing_animation: false,
 
         last_frame_time: Instant::now(),
-        input_string: String::new(),
-        input_override: None,
 
         app_fade_tweener: create_app_fade_tween(0., 1.),
         app_fade_pos: 0.,
 
         app_layout: AppLayout::default(),
-        app_context: AppContext::default(),
+        app_context: AppContext::new(query_send),
+        search_results_receiver: results_recv,
     };
+
+    // Start searcher thread
+    let _searching_thread = thread::spawn(move || searching_thread(results_send, query_recv));
 
     // Run startup callback
     window.app_layout.on_startup(&mut window.app_context);

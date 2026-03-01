@@ -1,9 +1,18 @@
-use crate::rendering::layout::Widget;
-use std::{cell::Cell, collections::HashMap, hash::Hash, rc::Rc, time::Instant};
+use crate::{config::ConfigData, rendering::layout::Widget, searching::SearchResults};
+use std::{
+    cell::Cell,
+    rc::Rc,
+    sync::mpsc::{Receiver, Sender},
+    time::Instant,
+};
 
-use skia_safe::{BlendMode, Canvas, Color4f, ColorSpace, ImageInfo, Paint, Rect};
+use skia_safe::{
+    BlendMode, Canvas, Color4f, ColorSpace, Font, FontMgr, ImageInfo, Paint, Rect,
+    textlayout::FontCollection,
+};
 use smithay_client_toolkit::{
     reexports::client::{QueueHandle, protocol::wl_shm},
+    seat::keyboard::{KeyEvent, KeyboardHandler},
     shell::WaylandSurface,
 };
 use tween::{CubicOut, Tween, Tweener};
@@ -11,6 +20,7 @@ use tween::{CubicOut, Tween, Tweener};
 use crate::window::HUDWindow;
 
 pub mod layout;
+pub mod text;
 
 const BACKGROUND_ALPHA: f32 = 0.5;
 
@@ -25,12 +35,28 @@ struct Animation {
     tweener: Tweener<f32, f64, Box<dyn Tween<f32>>>,
 }
 
-#[derive(Default)]
 pub struct AppContext {
     animations: Vec<Animation>,
+    config_data: ConfigData,
+    search_results: SearchResults,
+    query_send: Sender<String>,
+    key_handler: Option<Box<dyn Fn(KeyEvent)>>,
+    font_collection: FontCollection,
 }
 
 impl AppContext {
+    pub fn new(query_send: Sender<String>) -> Self {
+        let mut font_collection = FontCollection::new();
+        font_collection.set_default_font_manager(FontMgr::new(), None);
+        Self {
+            animations: Vec::new(),
+            config_data: ConfigData::default(),
+            key_handler: None,
+            search_results: SearchResults::default(),
+            query_send,
+            font_collection,
+        }
+    }
     pub fn update_animations(&mut self, delta: f64) {
         // retains only animations which are currently ongoing.
         self.animations.retain_mut(|a| {
@@ -51,6 +77,20 @@ impl AppContext {
             self.animations.push(Animation { val, tweener });
         }
     }
+
+    pub fn set_key_handler(&mut self, handler: Box<dyn Fn(KeyEvent)>) {
+        self.key_handler = Some(handler);
+    }
+
+    pub fn handle_key_press(&mut self, key: KeyEvent) {
+        if let Some(h) = self.key_handler.as_ref() {
+            h(key)
+        }
+    }
+
+    pub fn default_font(&mut self, size: Option<f32>) -> Font {
+        Font::from_typeface(self.font_collection.default_fallback().unwrap(), size)
+    }
 }
 
 impl HUDWindow {
@@ -68,6 +108,11 @@ impl HUDWindow {
     }
 
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+        // Checks for updated results before redrawing.
+        if let Ok(v) = self.search_results_receiver.try_recv() {
+            self.app_context.search_results = v;
+        }
+
         // Update animation states before drawing
         let now = Instant::now();
         let frame_delta = now.duration_since(self.last_frame_time).as_secs_f64();
