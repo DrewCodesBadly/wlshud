@@ -44,6 +44,7 @@ pub struct HUDWindow {
     pub shm: Shm,
     pub pool: SlotPool,
     pub layer_surface: LayerSurface,
+    pub loop_handle: LoopHandle<'static, HUDWindow>,
 
     pub keyboard: Option<WlKeyboard>,
     pub pointer: Option<WlPointer>,
@@ -216,7 +217,17 @@ impl SeatHandler for HUDWindow {
         capability: smithay_client_toolkit::seat::Capability,
     ) {
         if capability == Capability::Keyboard {
-            self.keyboard = Some(self.seat_state.get_keyboard(qh, &seat, None).unwrap());
+            self.keyboard = Some(
+                self.seat_state
+                    .get_keyboard_with_repeat(
+                        qh,
+                        &seat,
+                        None,
+                        self.loop_handle.clone(),
+                        Box::new(|_, _, _| {}),
+                    )
+                    .unwrap(),
+            );
         } else if capability == Capability::Pointer {
             self.pointer = Some(self.seat_state.get_pointer(qh, &seat).unwrap())
         }

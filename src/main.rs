@@ -72,6 +72,7 @@ fn main() {
         shm,
         pool,
         layer_surface,
+        loop_handle,
 
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
