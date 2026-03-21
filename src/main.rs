@@ -1,4 +1,5 @@
 use std::{
+    default,
     process::Command,
     sync::mpsc,
     thread::{self},
@@ -14,7 +15,11 @@ use gtk4::{
         prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
         spawn_blocking,
     },
-    glib::{Variant, VariantTy, clone, object::IsA, variant::ToVariant},
+    glib::{
+        Variant, VariantTy, clone,
+        object::{Cast, CastNone, IsA},
+        variant::ToVariant,
+    },
     prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
 };
 use gtk4::{glib, prelude::EditableExt};
@@ -69,6 +74,7 @@ fn activate(app: &Application) {
         .build();
     outer_box.append(&entry);
     let default_box = build_default_box();
+    let search_results_window = ScrolledWindow::builder().vexpand(true).build();
     outer_box.append(&default_box);
 
     // Startup animation
@@ -145,16 +151,19 @@ fn activate(app: &Application) {
     entry.connect_text_notify(clone!(
         #[strong]
         search_database,
+        #[strong]
+        search_results_window,
+        #[strong]
+        default_box,
         #[weak]
         outer_box,
         move |entry| {
             if entry.text().is_empty() {
-                let widgets_display = build_default_box();
                 // should always be true
                 if let Some(last_child) = outer_box.last_child() {
                     outer_box.remove(&last_child);
                 }
-                outer_box.append(&widgets_display);
+                outer_box.append(&default_box);
             } else if entry.text().starts_with(' ') {
                 entry.set_text("");
                 // todo: activate shortcuts
@@ -165,7 +174,25 @@ fn activate(app: &Application) {
                 if let Some(last_child) = outer_box.last_child() {
                     outer_box.remove(&last_child);
                 }
-                outer_box.append(&results_display);
+                search_results_window.set_child(Some(&results_display));
+                outer_box.append(&search_results_window);
+            }
+        }
+    ));
+
+    // `activate` means when the user presses enter
+    entry.connect_activate(clone!(
+        #[weak]
+        search_results_window,
+        move |_| {
+            if let Some(c) = search_results_window.child() {
+                // there's a GtkViewport in between these for some reason
+                c.first_child()
+                    .and_downcast::<ListBox>()
+                    .and_then(|b| b.row_at_index(0))
+                    .inspect(|r| {
+                        r.activate();
+                    });
             }
         }
     ));
@@ -231,12 +258,7 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
         .selection_mode(gtk4::SelectionMode::Single)
         .show_separators(true)
         .build();
-    list_box.connect_row_activated(|_, row| println!("meow"));
 
-    let scroll_window = ScrolledWindow::builder()
-        .child(&list_box)
-        .vexpand(true)
-        .build();
     for result in results {
         let row = ListBoxRow::builder()
             .selectable(true)
@@ -286,5 +308,5 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
         list_box.append(&row);
     }
 
-    scroll_window
+    list_box
 }
