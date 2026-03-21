@@ -1,22 +1,26 @@
 use std::{
     sync::mpsc,
     thread::{self},
+    time::Instant,
 };
 
 use gtk4::{
-    Application, ApplicationWindow, Box, CenterBox, Frame, Label, MenuButton, SearchBar,
-    SearchEntry, Window,
-    builders::SearchBarBuilder,
+    ApplicationWindow, Box, Frame, SearchEntry, Widget,
     gio::{
         ActionEntry, SimpleActionGroup,
-        prelude::{ActionGroupExt, ActionMapExtManual, ApplicationExt, ApplicationExtManual},
+        prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
+        spawn_blocking,
     },
-    glib::{self, clone},
+    glib::{clone, object::IsA},
     prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, WidgetExt},
 };
+use gtk4::{glib, prelude::EditableExt};
 use gtk4_layer_shell::LayerShell;
+use libadwaita::{
+    Application, CallbackAnimationTarget, Easing, TimedAnimation, prelude::AnimationExt,
+};
 
-use crate::searching::searching_thread;
+use crate::searching::{SearchDatabase, SearchResults};
 
 mod config;
 mod searching;
@@ -24,15 +28,7 @@ mod searching;
 const APP_MARGIN: i32 = 32;
 
 fn main() {
-    // Spawn searcher thread
-    // let search_results = SearchResults::default();
-    let (results_send, results_recv) = mpsc::channel();
-    let (query_send, query_recv) = mpsc::channel();
-
-    // Start searcher thread
-    let _searching_thread = thread::spawn(move || searching_thread(results_send, query_recv));
-
-    let app = gtk4::Application::builder()
+    let app = libadwaita::Application::builder()
         .application_id("com.github.DrewCodesBadly.wlshud")
         .build();
     app.connect_activate(activate);
@@ -44,6 +40,8 @@ fn main() {
 }
 
 fn activate(app: &Application) {
+    let search_database = SearchDatabase::new();
+
     let window = gtk4::ApplicationWindow::new(app);
 
     window.init_layer_shell();
@@ -54,20 +52,6 @@ fn activate(app: &Application) {
     window.set_anchor(gtk4_layer_shell::Edge::Top, true);
     window.set_anchor(gtk4_layer_shell::Edge::Left, true);
     window.set_anchor(gtk4_layer_shell::Edge::Right, true);
-
-    // Actions
-    let close_action = ActionEntry::builder("close")
-        .activate(clone!(
-            #[weak]
-            window,
-            move |_, _, _| {
-                window.close();
-            }
-        ))
-        .build();
-    let actions = SimpleActionGroup::new();
-    actions.add_action_entries([close_action]);
-    window.insert_action_group("wlshud", Some(&actions));
 
     let entry = SearchEntry::builder()
         .hexpand(true)
@@ -81,6 +65,86 @@ fn activate(app: &Application) {
         .margin_start(APP_MARGIN)
         .build();
     outer_box.append(&entry);
+    let default_box = build_default_box();
+    outer_box.append(&default_box);
+
+    // Startup animation
+    let opacity_target = CallbackAnimationTarget::new(clone!(
+        #[weak]
+        window,
+        move |v| {
+            window.set_opacity(v);
+        }
+    ));
+    let start_fade = TimedAnimation::builder()
+        .value_from(0.0)
+        .value_to(1.0)
+        .widget(&window)
+        .target(&opacity_target)
+        .easing(Easing::EaseOutCirc)
+        .duration(300)
+        .build();
+
+    // Actions
+    let close_action = ActionEntry::builder("close")
+        .activate(clone!(
+            #[weak]
+            window,
+            #[strong]
+            start_fade,
+            move |_, _, _| {
+                start_fade.set_reverse(true);
+                start_fade.set_easing(Easing::EaseInCirc);
+                start_fade.play();
+                start_fade.connect_done(move |_| {
+                    window.close();
+                });
+            }
+        ))
+        .build();
+    let actions = SimpleActionGroup::new();
+    actions.add_action_entries([close_action]);
+    window.insert_action_group("wlshud", Some(&actions));
+
+    // Connect search bar to input handling
+    entry.connect_changed(clone!(
+        #[strong]
+        search_database,
+        #[weak]
+        outer_box,
+        move |entry| {
+            if entry.text().starts_with(' ') {
+                entry.set_text("");
+                // todo: activate shortcuts
+            } else {
+                let results = search_database.search(&entry.text());
+                let results_display = build_search_results(results);
+                // should always be true
+                if let Some(last_child) = outer_box.last_child() {
+                    outer_box.remove(&last_child);
+                    outer_box.append(&results_display);
+                }
+            }
+        }
+    ));
+
+    // close when unfocused
+    window.connect_is_active_notify(|window| {
+        if !window.is_active() {
+            let _ = <ApplicationWindow as WidgetExt>::activate_action(window, "wlshud.close", None);
+        }
+    });
+    window.set_child(Some(&outer_box));
+    window.show();
+
+    // play starting animation
+    start_fade.play();
+}
+
+fn build_default_box() -> impl IsA<Widget> {
+    let outer_box = Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .build();
     // 2 rows inside
     let top_row = Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
@@ -116,12 +180,9 @@ fn activate(app: &Application) {
     bottom_row.append(&media_box);
     bottom_row.append(&bottom_bar);
 
-    // close when unfocused
-    window.connect_is_active_notify(|window| {
-        if !window.is_active() {
-            let _ = <ApplicationWindow as WidgetExt>::activate_action(window, "wlshud.close", None);
-        }
-    });
-    window.set_child(Some(&outer_box));
-    window.show();
+    outer_box
+}
+
+fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
+    Box::new(gtk4::Orientation::Horizontal, 10)
 }

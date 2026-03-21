@@ -13,6 +13,7 @@ use std::{
 };
 
 use freedesktop_desktop_entry::{desktop_entries, get_languages_from_env};
+use gtk4::glib::GString;
 use rust_fuzzy_search::fuzzy_search_best_n;
 use skia_safe::{Image, graphics::resource_cache_total_bytes_limit};
 
@@ -29,13 +30,14 @@ pub struct SearchResult {
     pub execute_command: String,
 }
 
-struct AppDatabase {
+#[derive(Clone)]
+pub struct SearchDatabase {
     // Hash map of app names to the full search result w/info
     apps: HashMap<String, SearchResult>,
 }
 
-impl AppDatabase {
-    fn new() -> Self {
+impl SearchDatabase {
+    pub fn new() -> Self {
         let locales = get_languages_from_env();
         let entries = desktop_entries(&locales);
         let apps_list = entries.iter().filter_map(|e| {
@@ -59,30 +61,23 @@ impl AppDatabase {
             }
         });
         let apps = HashMap::from_iter(apps_list);
-        AppDatabase { apps }
+        SearchDatabase { apps }
     }
-}
 
-pub fn searching_thread(results_send: Sender<SearchResults>, query_recv: Receiver<String>) {
-    let apps = AppDatabase::new();
-    let app_names = apps.apps.keys().map(|s| s.as_str()).collect::<Vec<&str>>();
-    let image_cache: HashMap<String, Image> = HashMap::new();
-
-    // Start main loop which reads search requests and updates the request output
-    for query in query_recv.iter() {
-        // Special case for files
+    pub fn search(&self, query: &GString) -> SearchResults {
         let mut search_results = SearchResults::new();
         if query.starts_with('/') || query.starts_with('~') {
         } else {
+            let app_names = self.apps.keys().map(|s| s.as_str()).collect::<Vec<&str>>();
             let results = fuzzy_search_best_n(&query, app_names.as_slice(), MAX_SEARCH_RESULTS);
             for result in results {
                 // should be a guaranteed success
-                if let Some(app) = apps.apps.get(result.0) {
+                if let Some(app) = self.apps.get(result.0) {
                     search_results.push(app.clone());
                 }
             }
         }
 
-        let _ = results_send.send(search_results);
+        search_results
     }
 }
