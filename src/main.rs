@@ -1,18 +1,21 @@
 use std::{
+    process::Command,
     sync::mpsc,
     thread::{self},
     time::Instant,
 };
 
 use gtk4::{
-    ApplicationWindow, Box, Frame, SearchEntry, Widget,
+    ApplicationWindow, Box, Frame, Image, Label, ListBox, ListBoxRow, ScrolledWindow, SearchEntry,
+    Widget,
     gio::{
         ActionEntry, SimpleActionGroup,
+        ffi::G_DBUS_ERROR_SPAWN_CONFIG_INVALID,
         prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
         spawn_blocking,
     },
-    glib::{clone, object::IsA},
-    prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, WidgetExt},
+    glib::{Variant, VariantTy, clone, object::IsA, variant::ToVariant},
+    prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
 };
 use gtk4::{glib, prelude::EditableExt};
 use gtk4_layer_shell::LayerShell;
@@ -93,37 +96,76 @@ fn activate(app: &Application) {
             #[strong]
             start_fade,
             move |_, _, _| {
+                // stop input
+                window.set_sensitive(false);
+
+                // start animation
                 start_fade.set_reverse(true);
                 start_fade.set_easing(Easing::EaseInCirc);
                 start_fade.play();
+
+                // close when done
                 start_fade.connect_done(move |_| {
                     window.close();
                 });
             }
         ))
         .build();
+    let exec_action = ActionEntry::builder("exec")
+        .parameter_type(Some(VariantTy::STRING_ARRAY))
+        .activate(clone!(
+            #[weak]
+            window,
+            move |_, _, parameter| {
+                if let Some(p) = parameter {
+                    if let Some(exec_list) = p.get::<Vec<String>>() {
+                        if exec_list.len() > 0 {
+                            let mut exec = exec_list.iter();
+                            let mut cmd = Command::new(&exec.next().unwrap());
+                            for arg in exec {
+                                cmd.arg(arg);
+                            }
+                            let _ = cmd.spawn();
+                            let _ = <ApplicationWindow as WidgetExt>::activate_action(
+                                &window,
+                                "wlshud.close",
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        ))
+        .build();
     let actions = SimpleActionGroup::new();
-    actions.add_action_entries([close_action]);
+    actions.add_action_entries([close_action, exec_action]);
     window.insert_action_group("wlshud", Some(&actions));
 
     // Connect search bar to input handling
-    entry.connect_changed(clone!(
+    entry.connect_text_notify(clone!(
         #[strong]
         search_database,
         #[weak]
         outer_box,
         move |entry| {
-            if entry.text().starts_with(' ') {
+            if entry.text().is_empty() {
+                let widgets_display = build_default_box();
+                // should always be true
+                if let Some(last_child) = outer_box.last_child() {
+                    outer_box.remove(&last_child);
+                }
+                outer_box.append(&widgets_display);
+            } else if entry.text().starts_with(' ') {
                 entry.set_text("");
                 // todo: activate shortcuts
             } else {
-                let results = search_database.search(&entry.text());
+                let results = search_database.search(&entry.text().to_ascii_lowercase());
                 let results_display = build_search_results(results);
                 // should always be true
                 if let Some(last_child) = outer_box.last_child() {
                     outer_box.remove(&last_child);
-                    outer_box.append(&results_display);
                 }
+                outer_box.append(&results_display);
             }
         }
     ));
@@ -184,5 +226,65 @@ fn build_default_box() -> impl IsA<Widget> {
 }
 
 fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
-    Box::new(gtk4::Orientation::Horizontal, 10)
+    let list_box = ListBox::builder()
+        .activate_on_single_click(true)
+        .selection_mode(gtk4::SelectionMode::Single)
+        .show_separators(true)
+        .build();
+    list_box.connect_row_activated(|_, row| println!("meow"));
+
+    let scroll_window = ScrolledWindow::builder()
+        .child(&list_box)
+        .vexpand(true)
+        .build();
+    for result in results {
+        let row = ListBoxRow::builder()
+            .selectable(true)
+            .activatable(true)
+            .action_name("wlshud.exec")
+            .action_target(&result.execute_command.to_variant())
+            .build();
+        const ROW_SPACING_MARGIN: i32 = 8;
+        let row_contents = Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .margin_bottom(ROW_SPACING_MARGIN)
+            .margin_top(ROW_SPACING_MARGIN)
+            .margin_end(ROW_SPACING_MARGIN)
+            .margin_start(ROW_SPACING_MARGIN)
+            .vexpand(true)
+            .spacing(16)
+            .build();
+        let labels_box = Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .build();
+        let name_label = Label::new(Some(&result.name));
+        name_label.set_css_classes(&["title"]);
+        name_label.set_halign(gtk4::Align::Start);
+        let location_label = Label::new(result.location.to_str());
+        location_label.set_css_classes(&["subtitle"]);
+        location_label.set_halign(gtk4::Align::Start);
+        labels_box.append(&name_label);
+        labels_box.append(&location_label);
+
+        let icon = if let Some(path) = result.icon_path {
+            // TODO: less stupid way of doing this? I think it only needs to be / but just to be safe.
+            // would also be nice if this worked on other platforms as a future-proof thing
+            if path.starts_with('/') || path.starts_with('~') {
+                Image::from_file(path)
+            } else {
+                Image::from_icon_name(&path)
+            }
+        } else {
+            Image::from_icon_name("folder")
+        };
+        icon.set_icon_size(gtk4::IconSize::Large);
+
+        row_contents.append(&icon);
+        row_contents.append(&labels_box);
+
+        row.set_child(Some(&row_contents));
+        list_box.append(&row);
+    }
+
+    scroll_window
 }

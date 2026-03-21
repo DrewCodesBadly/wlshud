@@ -17,7 +17,8 @@ use gtk4::glib::GString;
 use rust_fuzzy_search::fuzzy_search_best_n;
 use skia_safe::{Image, graphics::resource_cache_total_bytes_limit};
 
-const MAX_SEARCH_RESULTS: usize = 10;
+// TODO: User-customizable?
+const MAX_SEARCH_RESULTS: usize = 20;
 const MIN_RESULT_THRESHOLD: f32 = 0.1;
 
 pub type SearchResults = Vec<SearchResult>;
@@ -27,7 +28,7 @@ pub struct SearchResult {
     pub icon_path: Option<String>,
     pub name: String,
     pub location: PathBuf,
-    pub execute_command: String,
+    pub execute_command: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -41,7 +42,7 @@ impl SearchDatabase {
         let locales = get_languages_from_env();
         let entries = desktop_entries(&locales);
         let apps_list = entries.iter().filter_map(|e| {
-            if let Some(exec) = e.exec() {
+            if let Ok(exec) = e.parse_exec() {
                 let name = e.name(&locales).map(|c| c.to_string()).unwrap_or(
                     e.generic_name(&locales)
                         .map(|c| c.to_string())
@@ -53,7 +54,7 @@ impl SearchDatabase {
                         name,
                         icon_path: e.icon().map(|s| s.to_string()),
                         location: e.path.clone(),
-                        execute_command: exec.to_string(),
+                        execute_command: exec,
                     },
                 ))
             } else {
@@ -64,7 +65,7 @@ impl SearchDatabase {
         SearchDatabase { apps }
     }
 
-    pub fn search(&self, query: &GString) -> SearchResults {
+    pub fn search(&self, query: &str) -> SearchResults {
         let mut search_results = SearchResults::new();
         if query.starts_with('/') || query.starts_with('~') {
         } else {
