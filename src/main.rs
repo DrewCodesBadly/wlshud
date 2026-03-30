@@ -8,10 +8,10 @@ use std::{
 
 use gtk4::{
     ApplicationWindow, Box, EventControllerKey, Frame, Image, Label, ListBox, ListBoxRow,
-    ScrolledWindow, SearchEntry, Settings, Widget,
+    ScrolledWindow, SearchEntry, Widget,
     builders::EventControllerKeyBuilder,
     gio::{
-        ActionEntry, SimpleActionGroup,
+        ActionEntry, Settings, SimpleActionGroup,
         ffi::G_DBUS_ERROR_SPAWN_CONFIG_INVALID,
         prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
         spawn_blocking,
@@ -21,7 +21,7 @@ use gtk4::{
         object::{Cast, CastNone, IsA},
         variant::ToVariant,
     },
-    prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
+    prelude::{BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
 };
 use gtk4::{glib, prelude::EditableExt};
 use gtk4_layer_shell::LayerShell;
@@ -37,10 +37,11 @@ mod searching;
 mod shortcuts;
 
 const APP_MARGIN: i32 = 32;
+const APP_ID: &str = "com.DrewCodesBadly.wlshud";
 
 fn main() {
     let app = libadwaita::Application::builder()
-        .application_id("com.DrewCodesBadly.wlshud")
+        .application_id(APP_ID)
         .build();
     app.connect_activate(activate);
 
@@ -54,7 +55,6 @@ fn activate(app: &Application) {
     let search_database = SearchDatabase::new();
     let config = ConfigData::default();
     let shortcuts_display = ShortcutsDisplay::new(config.root_shortcut_node().clone());
-    let settings = Settings::new("com.DrewCodesBadly.wlshud");
 
     let window = gtk4::ApplicationWindow::new(app);
 
@@ -72,15 +72,26 @@ fn activate(app: &Application) {
         .valign(gtk4::Align::Start)
         .build();
 
+    let outer_box = Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .margin_bottom(APP_MARGIN)
+        .margin_top(APP_MARGIN)
+        .margin_end(APP_MARGIN)
+        .margin_start(APP_MARGIN)
+        .build();
+    outer_box.append(&entry);
+    let search_results_window = ScrolledWindow::builder().vexpand(true).build();
+
+    let default_box = build_default_box(&shortcuts_display);
+    outer_box.append(&default_box);
+
     // TODO: check this, figure out how it works
     // Send key presses to the shortcuts display to trigger shortcuts.
     let key_controller = EventControllerKey::builder().build();
     key_controller.connect_key_pressed(clone!(
         #[strong]
-        shortcuts_display,
-        #[strong]
         entry,
-        move |_, key, code, _| {
+        move |_, key, _, _| {
             // Do not handle events if the search entry currently has focus.
             if entry.has_focus() {
                 return glib::Propagation::Proceed;
@@ -98,18 +109,6 @@ fn activate(app: &Application) {
         }
     ));
     window.add_controller(key_controller);
-
-    let outer_box = Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .margin_bottom(APP_MARGIN)
-        .margin_top(APP_MARGIN)
-        .margin_end(APP_MARGIN)
-        .margin_start(APP_MARGIN)
-        .build();
-    outer_box.append(&entry);
-    let default_box = build_default_box(shortcuts_display);
-    let search_results_window = ScrolledWindow::builder().vexpand(true).build();
-    outer_box.append(&default_box);
 
     // Startup animation
     let opacity_target = CallbackAnimationTarget::new(clone!(
@@ -244,7 +243,7 @@ fn activate(app: &Application) {
     start_fade.play();
 }
 
-fn build_default_box(shortcuts_display: ShortcutsDisplay) -> impl IsA<Widget> {
+fn build_default_box(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
     let outer_box = Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .build();
@@ -270,6 +269,7 @@ fn build_default_box(shortcuts_display: ShortcutsDisplay) -> impl IsA<Widget> {
 
     // builds the shortcuts area
     let shortcuts_area = Frame::builder().hexpand(true).build();
+    shortcuts_area.set_child(Some(shortcuts_display.box_widget()));
 
     let media_box = Frame::builder()
         .width_request(300)
@@ -325,7 +325,7 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
         labels_box.append(&location_label);
 
         let icon = if let Some(path) = result.icon_path {
-            icon_from_name(path)
+            icon_from_name(&path)
         } else {
             Image::from_icon_name("folder")
         };
@@ -341,12 +341,12 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
     list_box
 }
 
-pub fn icon_from_name(icon_name: String) -> Image {
+pub fn icon_from_name(icon_name: &str) -> Image {
     // TODO: less stupid way of doing this? I think it only needs to be / but just to be safe.
     // would also be nice if this worked on other platforms as a future-proof thing
-    if path.starts_with('/') || path.starts_with('~') {
-        Image::from_file(path)
+    if icon_name.starts_with('/') || icon_name.starts_with('~') {
+        Image::from_file(icon_name)
     } else {
-        Image::from_icon_name(&path)
+        Image::from_icon_name(&icon_name)
     }
 }
