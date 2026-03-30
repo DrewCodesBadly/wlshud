@@ -6,9 +6,23 @@ impl Default for ConfigData {
     fn default() -> Self {
         Self {
             root_shortcut_node: ShortcutNode {
-                character: 'a',
+                character: 'r',
                 exec: None,
-                children: Vec::new(),
+                // children: Vec::new(),
+                children: vec![
+                    ShortcutNode {
+                        character: 't',
+                        exec: None,
+                        children: Vec::new(),
+                        icon: None,
+                    },
+                    ShortcutNode {
+                        character: 's',
+                        exec: Some(vec!["steam".to_string()]),
+                        children: Vec::new(),
+                        icon: Some("steam".to_string()),
+                    },
+                ],
                 icon: None,
             },
         }

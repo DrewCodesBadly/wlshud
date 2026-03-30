@@ -1,21 +1,7 @@
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-    mem::take,
-    path::PathBuf,
-    result,
-    sync::{
-        Arc, Mutex, RwLock,
-        mpsc::{Receiver, Sender},
-    },
-    thread,
-    time::Duration,
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use freedesktop_desktop_entry::{desktop_entries, get_languages_from_env};
-use gtk4::glib::GString;
 use rust_fuzzy_search::fuzzy_search_best_n;
-use skia_safe::{Image, graphics::resource_cache_total_bytes_limit};
 
 // TODO: User-customizable?
 const MAX_SEARCH_RESULTS: usize = 20;

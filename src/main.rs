@@ -1,24 +1,15 @@
-use std::{
-    default,
-    process::Command,
-    sync::mpsc,
-    thread::{self},
-    time::Instant,
-};
+use std::{default, process::Command};
 
 use gtk4::{
     ApplicationWindow, Box, EventControllerKey, Frame, Image, Label, ListBox, ListBoxRow,
     ScrolledWindow, SearchEntry, Widget,
-    builders::EventControllerKeyBuilder,
     gio::{
-        ActionEntry, Settings, SimpleActionGroup,
-        ffi::G_DBUS_ERROR_SPAWN_CONFIG_INVALID,
+        ActionEntry, SimpleActionGroup,
         prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
-        spawn_blocking,
     },
     glib::{
-        Variant, VariantTy, clone,
-        object::{Cast, CastNone, IsA},
+        VariantTy, clone,
+        object::{CastNone, IsA},
         variant::ToVariant,
     },
     prelude::{BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
@@ -192,13 +183,18 @@ fn activate(app: &Application) {
         outer_box,
         move |entry| {
             if entry.text().is_empty() {
-                // should always be true
-                if let Some(last_child) = outer_box.last_child() {
-                    outer_box.remove(&last_child);
+                // the has focus check here is to make sure this doesn't rebuild and
+                // break the focus when space is pressed to trigger shortcuts
+                if entry.has_focus() {
+                    // should always be true
+                    if let Some(last_child) = outer_box.last_child() {
+                        outer_box.remove(&last_child);
+                    }
+                    outer_box.append(&default_box);
                 }
-                outer_box.append(&default_box);
             } else if entry.text().starts_with(' ') {
                 entry.set_text("");
+                default_box.grab_focus();
                 // todo: activate shortcuts
             } else {
                 let results = search_database.search(&entry.text().to_ascii_lowercase());
@@ -246,6 +242,7 @@ fn activate(app: &Application) {
 fn build_default_box(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
     let outer_box = Box::builder()
         .orientation(gtk4::Orientation::Vertical)
+        .focusable(true)
         .build();
     // 2 rows inside
     let top_row = Box::builder()

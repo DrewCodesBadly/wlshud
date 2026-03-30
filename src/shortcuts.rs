@@ -1,16 +1,10 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 
 use gtk4::{
     Box, Image, Label, Widget,
-    glib::{self, Object, object::IsA, property::PropertySet, variant::ToVariant},
+    glib::{object::IsA, property::PropertySet, variant::ToVariant},
     prelude::{BoxExt, WidgetExt},
-    subclass::{
-        box_::BoxImpl,
-        prelude::{ActionableImpl, TextBufferImpl},
-        widget::WidgetImpl,
-    },
 };
-use libadwaita::subclass::prelude::{ObjectImpl, ObjectSubclass};
 
 use crate::{config::ShortcutNode, icon_from_name};
 
@@ -24,13 +18,17 @@ impl Default for ShortcutsDisplay {
     fn default() -> Self {
         Self {
             current_node: RefCell::new(ShortcutNode {
-                character: 's',
+                character: 'r',
                 exec: None,
                 children: Vec::new(),
                 icon: None,
             }),
             outer_box: Box::builder()
                 .orientation(gtk4::Orientation::Vertical)
+                .vexpand(true)
+                .spacing(16)
+                .margin_top(16)
+                .margin_bottom(16)
                 .build(),
         }
     }
@@ -58,7 +56,7 @@ impl ShortcutsDisplay {
                         "wlshud.exec",
                         Some(&exec.to_variant()),
                     );
-                } else {
+                } else if child.children.len() > 0 {
                     // Activate children
                     swap_node = Some(child.clone());
                     let row = build_shortcuts_row(&cur_node);
@@ -84,6 +82,8 @@ impl ShortcutsDisplay {
 fn build_shortcuts_row(node: &ShortcutNode) -> impl IsA<Widget> {
     let row = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
+        .hexpand(true)
+        .homogeneous(true)
         .build();
 
     for child in node.children.iter().by_ref() {
@@ -99,11 +99,13 @@ fn build_shortcuts_row(node: &ShortcutNode) -> impl IsA<Widget> {
         } else {
             Image::from_icon_name("folder")
         };
+        icon.set_icon_size(gtk4::IconSize::Large);
 
         let label = Label::builder().label(child.character.to_string()).build();
 
         child_box.append(&icon);
         child_box.append(&label);
+        row.append(&child_box);
     }
 
     row
