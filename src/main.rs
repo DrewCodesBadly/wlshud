@@ -1,8 +1,10 @@
-use std::{default, process::Command};
+use std::{default, fs, io, process::Command};
 
+use directories::ProjectDirs;
 use gtk4::{
-    ApplicationWindow, Box, EventControllerKey, Frame, Image, Label, ListBox, ListBoxRow,
-    ScrolledWindow, SearchEntry, Widget,
+    ApplicationWindow, Box, CssProvider, EventControllerKey, Frame, Image, Label, ListBox,
+    ListBoxRow, ScrolledWindow, SearchEntry, Widget,
+    gdk::Display,
     gio::{
         ActionEntry, SimpleActionGroup,
         prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
@@ -29,11 +31,39 @@ mod shortcuts;
 
 const APP_MARGIN: i32 = 32;
 const APP_ID: &str = "com.DrewCodesBadly.wlshud";
+const DEFAULT_CSS_STRING: &str = include_str!("default_style.css");
 
 fn main() {
     let app = libadwaita::Application::builder()
         .application_id(APP_ID)
         .build();
+    // startup tasks (loading css)
+    app.connect_startup(|_| {
+        let provider = CssProvider::new();
+
+        // should just be .config/wlshud but yknow might as well wrap it nicely
+        let dirs = ProjectDirs::from("com", "DrewCodesBadly", "wlshud")
+            .expect("Cannot get user directories.");
+        let mut path = dirs.config_dir().to_path_buf();
+        path.push("style.css");
+        if let Ok(css) = fs::read_to_string(&path) {
+            provider.load_from_data(&css);
+        } else {
+            // TODO: Uncomment
+            // Not doing this yet to make testing default css easier.
+            // if fs::create_dir_all(&path).is_ok() {
+            //     let _ = fs::write(path, DEFAULT_CSS_STRING);
+            // }
+
+            // provider.load_from_data(DEFAULT_CSS_STRING);
+        }
+
+        gtk4::style_context_add_provider_for_display(
+            &Display::default().expect("No display connected."),
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+    });
     app.connect_activate(activate);
 
     // Set binds
