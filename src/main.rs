@@ -7,8 +7,9 @@ use std::{
 };
 
 use gtk4::{
-    ApplicationWindow, Box, Frame, Image, Label, ListBox, ListBoxRow, ScrolledWindow, SearchEntry,
-    Widget,
+    ApplicationWindow, Box, EventControllerKey, Frame, Image, Label, ListBox, ListBoxRow,
+    ScrolledWindow, SearchEntry, Settings, Widget,
+    builders::EventControllerKeyBuilder,
     gio::{
         ActionEntry, SimpleActionGroup,
         ffi::G_DBUS_ERROR_SPAWN_CONFIG_INVALID,
@@ -29,15 +30,17 @@ use libadwaita::{
 };
 
 use crate::searching::{SearchDatabase, SearchResults};
+use crate::{config::ConfigData, shortcuts::ShortcutsDisplay};
 
 mod config;
 mod searching;
+mod shortcuts;
 
 const APP_MARGIN: i32 = 32;
 
 fn main() {
     let app = libadwaita::Application::builder()
-        .application_id("com.github.DrewCodesBadly.wlshud")
+        .application_id("com.DrewCodesBadly.wlshud")
         .build();
     app.connect_activate(activate);
 
@@ -49,6 +52,9 @@ fn main() {
 
 fn activate(app: &Application) {
     let search_database = SearchDatabase::new();
+    let config = ConfigData::default();
+    let shortcuts_display = ShortcutsDisplay::new(config.root_shortcut_node().clone());
+    let settings = Settings::new("com.DrewCodesBadly.wlshud");
 
     let window = gtk4::ApplicationWindow::new(app);
 
@@ -65,6 +71,34 @@ fn activate(app: &Application) {
         .hexpand(true)
         .valign(gtk4::Align::Start)
         .build();
+
+    // TODO: check this, figure out how it works
+    // Send key presses to the shortcuts display to trigger shortcuts.
+    let key_controller = EventControllerKey::builder().build();
+    key_controller.connect_key_pressed(clone!(
+        #[strong]
+        shortcuts_display,
+        #[strong]
+        entry,
+        move |_, key, code, _| {
+            // Do not handle events if the search entry currently has focus.
+            if entry.has_focus() {
+                return glib::Propagation::Proceed;
+            }
+
+            if let Some(char) = key.to_unicode() {
+                if shortcuts_display.handle_key_pressed(char) {
+                    glib::Propagation::Stop
+                } else {
+                    glib::Propagation::Proceed
+                }
+            } else {
+                glib::Propagation::Proceed
+            }
+        }
+    ));
+    window.add_controller(key_controller);
+
     let outer_box = Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .margin_bottom(APP_MARGIN)
@@ -73,7 +107,7 @@ fn activate(app: &Application) {
         .margin_start(APP_MARGIN)
         .build();
     outer_box.append(&entry);
-    let default_box = build_default_box();
+    let default_box = build_default_box(shortcuts_display);
     let search_results_window = ScrolledWindow::builder().vexpand(true).build();
     outer_box.append(&default_box);
 
@@ -210,7 +244,7 @@ fn activate(app: &Application) {
     start_fade.play();
 }
 
-fn build_default_box() -> impl IsA<Widget> {
+fn build_default_box(shortcuts_display: ShortcutsDisplay) -> impl IsA<Widget> {
     let outer_box = Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .build();
@@ -233,6 +267,8 @@ fn build_default_box() -> impl IsA<Widget> {
         .height_request(64)
         .hexpand(true)
         .build();
+
+    // builds the shortcuts area
     let shortcuts_area = Frame::builder().hexpand(true).build();
 
     let media_box = Frame::builder()
@@ -289,13 +325,7 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
         labels_box.append(&location_label);
 
         let icon = if let Some(path) = result.icon_path {
-            // TODO: less stupid way of doing this? I think it only needs to be / but just to be safe.
-            // would also be nice if this worked on other platforms as a future-proof thing
-            if path.starts_with('/') || path.starts_with('~') {
-                Image::from_file(path)
-            } else {
-                Image::from_icon_name(&path)
-            }
+            icon_from_name(path)
         } else {
             Image::from_icon_name("folder")
         };
@@ -309,4 +339,14 @@ fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
     }
 
     list_box
+}
+
+pub fn icon_from_name(icon_name: String) -> Image {
+    // TODO: less stupid way of doing this? I think it only needs to be / but just to be safe.
+    // would also be nice if this worked on other platforms as a future-proof thing
+    if path.starts_with('/') || path.starts_with('~') {
+        Image::from_file(path)
+    } else {
+        Image::from_icon_name(&path)
+    }
 }
