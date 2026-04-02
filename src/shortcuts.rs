@@ -10,19 +10,14 @@ use crate::{config::ShortcutNode, icon_from_name};
 
 // #[derive(Default)]
 pub struct ShortcutsDisplay {
-    current_node: RefCell<ShortcutNode>,
+    current_nodes: RefCell<Vec<ShortcutNode>>,
     outer_box: Box,
 }
 
 impl Default for ShortcutsDisplay {
     fn default() -> Self {
         Self {
-            current_node: RefCell::new(ShortcutNode {
-                character: 'r',
-                exec: None,
-                children: Vec::new(),
-                icon: None,
-            }),
+            current_nodes: RefCell::new(Vec::new()),
             outer_box: Box::builder()
                 .orientation(gtk4::Orientation::Vertical)
                 .vexpand(true)
@@ -35,20 +30,20 @@ impl Default for ShortcutsDisplay {
 }
 
 impl ShortcutsDisplay {
-    pub fn new(root_node: ShortcutNode) -> Self {
-        let row_1 = build_shortcuts_row(&root_node);
+    pub fn new(nodes_list: &[ShortcutNode]) -> Self {
         let s = Self {
-            current_node: RefCell::new(root_node),
+            current_nodes: RefCell::new(nodes_list.to_owned()),
             ..Default::default()
         };
+        let row_1 = build_shortcuts_row(&s.current_nodes.borrow());
         s.box_widget().append(&row_1);
 
         s
     }
     pub fn handle_key_pressed(&self, key: char) -> bool {
-        let cur_node = self.current_node.borrow();
+        let cur_nodes = self.current_nodes.borrow();
         let mut swap_node = None;
-        for child in &cur_node.children {
+        for child in cur_nodes.iter() {
             if child.character == key {
                 if let Some(exec) = &child.exec {
                     let _ = <Box as WidgetExt>::activate_action(
@@ -59,15 +54,15 @@ impl ShortcutsDisplay {
                 } else if child.children.len() > 0 {
                     // Activate children
                     swap_node = Some(child.clone());
-                    let row = build_shortcuts_row(&cur_node);
-                    self.outer_box.append(&row);
                 }
             }
         }
 
-        drop(cur_node);
+        drop(cur_nodes);
         if let Some(node) = swap_node {
-            self.current_node.set(node);
+            let row = build_shortcuts_row(&node.children);
+            self.outer_box.append(&row);
+            self.current_nodes.set(node.children.clone());
             true
         } else {
             false
@@ -79,14 +74,14 @@ impl ShortcutsDisplay {
     }
 }
 
-fn build_shortcuts_row(node: &ShortcutNode) -> impl IsA<Widget> {
+fn build_shortcuts_row(nodes: &[ShortcutNode]) -> impl IsA<Widget> {
     let row = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .hexpand(true)
         .homogeneous(true)
         .build();
 
-    for child in node.children.iter().by_ref() {
+    for child in nodes {
         let child_box = gtk4::Box::builder()
             .orientation(gtk4::Orientation::Vertical)
             .build();

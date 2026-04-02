@@ -1,37 +1,33 @@
+use std::{fs::read_to_string, io, path::PathBuf};
+
+use directories::ProjectDirs;
+use gtk4::glib::user_config_dir;
+use json::JsonValue;
+
 pub struct ConfigData {
-    root_shortcut_node: ShortcutNode,
+    shortcuts_list: Vec<ShortcutNode>,
 }
 
 impl Default for ConfigData {
     fn default() -> Self {
-        Self {
-            root_shortcut_node: ShortcutNode {
-                character: 'r',
-                exec: None,
-                // children: Vec::new(),
-                children: vec![
-                    ShortcutNode {
-                        character: 't',
-                        exec: None,
-                        children: Vec::new(),
-                        icon: None,
-                    },
-                    ShortcutNode {
-                        character: 's',
-                        exec: Some(vec!["steam".to_string()]),
-                        children: Vec::new(),
-                        icon: Some("steam".to_string()),
-                    },
-                ],
-                icon: None,
-            },
-        }
+        // attempts to load config data first, then defaults
+        let shortcuts_path = shortcuts_file_path();
+        let shortucts_file = read_to_string(shortcuts_path)
+            .and_then(|s| json::parse(&s).map_err(|_| io::Error::other("Failed to parse JSON")));
+        let shortcuts_list = if let Ok(parsed) = shortucts_file {
+            println!("parsing");
+            parse_shortcuts_json(&parsed)
+        } else {
+            println!("cannot parse");
+            Vec::new()
+        };
+        Self { shortcuts_list }
     }
 }
 
 impl ConfigData {
-    pub fn root_shortcut_node(&self) -> &ShortcutNode {
-        &self.root_shortcut_node
+    pub fn shortcuts_list(&self) -> &[ShortcutNode] {
+        &self.shortcuts_list
     }
 }
 
@@ -41,4 +37,84 @@ pub struct ShortcutNode {
     pub exec: Option<Vec<String>>,
     pub children: Vec<ShortcutNode>,
     pub icon: Option<String>,
+}
+
+pub fn parse_shortcuts_json(data: &JsonValue) -> Vec<ShortcutNode> {
+    let mut vec = Vec::new();
+    if data.is_array() {
+        for member in data.members() {
+            // build node from member
+            let exec_data = &member["exec"];
+            let exec = if exec_data.is_array() {
+                Some(
+                    exec_data
+                        .members()
+                        .map(|s| s.as_str().unwrap_or("").to_owned())
+                        .collect(),
+                )
+            } else {
+                None
+            };
+            let character_data = &member["character"];
+            if !character_data.is_string() {
+                continue;
+            }
+            let char_str = character_data.to_string();
+            if char_str.len() == 0 {
+                continue;
+            }
+            let children = parse_shortcuts_json(&member["children"]);
+            let node = ShortcutNode {
+                character: char_str.chars().next().unwrap(),
+                exec,
+                children,
+                icon: member["icon"].as_str().map(|s| s.to_owned()),
+            };
+            vec.push(node);
+        }
+    }
+
+    vec
+}
+
+pub fn save_shortcuts_json(shortcuts: &[ShortcutNode]) {
+    let json_data = shortcut_array_to_json(shortcuts);
+    let path = shortcuts_file_path();
+    let _ = std::fs::write(path, json_data.dump());
+}
+
+fn shortcut_array_to_json(shortcuts: &[ShortcutNode]) -> JsonValue {
+    let mut arr = json::array![];
+
+    for node in shortcuts {
+        let mut obj = json::object! {
+            character: node.character.to_string(),
+            children: shortcut_array_to_json(&node.children),
+        };
+        if let Some(icon) = &node.icon {
+            obj["icon"] = JsonValue::String(icon.to_owned());
+        }
+        if let Some(exec) = &node.exec {
+            let mut exec_arr = json::array![];
+            for cmd in exec {
+                let _ = exec_arr.push(JsonValue::String(cmd.to_owned()));
+            }
+        }
+
+        let _ = arr.push(obj);
+    }
+
+    arr
+}
+
+fn wlshud_config_dir() -> PathBuf {
+    let mut dir = user_config_dir();
+    dir.push("wlshud");
+    dir
+}
+
+pub fn shortcuts_file_path() -> PathBuf {
+    let mut dir = wlshud_config_dir();
+    dir.push("shortcuts.json");
+    dir
 }

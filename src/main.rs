@@ -12,6 +12,7 @@ use gtk4::{
     glib::{
         VariantTy, clone,
         object::{CastNone, IsA},
+        user_config_dir,
         variant::ToVariant,
     },
     prelude::{BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
@@ -42,9 +43,7 @@ fn main() {
         let provider = CssProvider::new();
 
         // should just be .config/wlshud but yknow might as well wrap it nicely
-        let dirs = ProjectDirs::from("com", "DrewCodesBadly", "wlshud")
-            .expect("Cannot get user directories.");
-        let mut path = dirs.config_dir().to_path_buf();
+        let mut path = user_config_dir();
         path.push("style.css");
         if let Ok(css) = fs::read_to_string(&path) {
             provider.load_from_data(&css);
@@ -75,7 +74,7 @@ fn main() {
 fn activate(app: &Application) {
     let search_database = SearchDatabase::new();
     let config = ConfigData::default();
-    let shortcuts_display = ShortcutsDisplay::new(config.root_shortcut_node().clone());
+    let shortcuts_display = ShortcutsDisplay::new(config.shortcuts_list());
 
     let window = gtk4::ApplicationWindow::new(app);
 
@@ -215,7 +214,7 @@ fn activate(app: &Application) {
             if entry.text().is_empty() {
                 // the has focus check here is to make sure this doesn't rebuild and
                 // break the focus when space is pressed to trigger shortcuts
-                if entry.has_focus() {
+                if entry.focus_child().is_some() {
                     // should always be true
                     if let Some(last_child) = outer_box.last_child() {
                         outer_box.remove(&last_child);
@@ -294,10 +293,6 @@ fn build_default_box(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
         .hexpand(true)
         .build();
 
-    // builds the shortcuts area
-    let shortcuts_area = Frame::builder().hexpand(true).build();
-    shortcuts_area.set_child(Some(shortcuts_display.box_widget()));
-
     let media_box = Frame::builder()
         .width_request(300)
         .height_request(200)
@@ -306,7 +301,7 @@ fn build_default_box(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
 
     // populate two inner rows
     top_row.append(&left_bar);
-    top_row.append(&shortcuts_area);
+    top_row.append(shortcuts_display.box_widget());
     top_row.append(&notes_box);
 
     bottom_row.append(&media_box);
