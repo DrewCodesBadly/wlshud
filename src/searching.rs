@@ -1,11 +1,17 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use freedesktop_desktop_entry::{desktop_entries, get_languages_from_env};
+use gtk4::{
+    Box, Button, Image, Label, ListBox, ListBoxRow, MenuButton, Popover, Widget,
+    glib::{object::IsA, variant::ToVariant},
+    prelude::{BoxExt, ListBoxRowExt, WidgetExt},
+};
 use rust_fuzzy_search::fuzzy_search_best_n;
+
+use crate::icon_from_name;
 
 // TODO: User-customizable?
 const MAX_SEARCH_RESULTS: usize = 20;
-const MIN_RESULT_THRESHOLD: f32 = 0.1;
 
 pub type SearchResults = Vec<SearchResult>;
 
@@ -67,4 +73,58 @@ impl SearchDatabase {
 
         search_results
     }
+}
+
+pub fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
+    let list_box = ListBox::builder()
+        .activate_on_single_click(true)
+        .selection_mode(gtk4::SelectionMode::Single)
+        .show_separators(true)
+        .build();
+
+    for result in results {
+        let row = ListBoxRow::builder()
+            .selectable(true)
+            .activatable(true)
+            .action_name("wlshud.exec")
+            .action_target(&result.execute_command.to_variant())
+            .build();
+        const ROW_SPACING_MARGIN: i32 = 8;
+        let row_contents = Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .margin_bottom(ROW_SPACING_MARGIN)
+            .margin_top(ROW_SPACING_MARGIN)
+            .margin_end(ROW_SPACING_MARGIN)
+            .margin_start(ROW_SPACING_MARGIN)
+            .vexpand(true)
+            .spacing(16)
+            .build();
+        let labels_box = Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .build();
+        let name_label = Label::new(Some(&result.name));
+        name_label.set_css_classes(&["title"]);
+        name_label.set_halign(gtk4::Align::Start);
+        let location_label = Label::new(result.location.to_str());
+        location_label.set_css_classes(&["subtitle"]);
+        location_label.set_halign(gtk4::Align::Start);
+        labels_box.append(&name_label);
+        labels_box.append(&location_label);
+
+        let icon = if let Some(path) = result.icon_path {
+            icon_from_name(&path)
+        } else {
+            Image::from_icon_name("folder")
+        };
+        icon.set_icon_size(gtk4::IconSize::Large);
+
+        row_contents.append(&icon);
+        row_contents.append(&labels_box);
+        row_contents.append(&create_shortcut_button);
+
+        row.set_child(Some(&row_contents));
+        list_box.append(&row);
+    }
+
+    list_box
 }

@@ -23,10 +23,14 @@ use libadwaita::{
     Application, CallbackAnimationTarget, Easing, TimedAnimation, prelude::AnimationExt,
 };
 
-use crate::searching::{SearchDatabase, SearchResults};
 use crate::{config::ConfigData, shortcuts::ShortcutsDisplay};
+use crate::{
+    main_widgets::build_main_widgets,
+    searching::{SearchDatabase, SearchResults, build_search_results},
+};
 
 mod config;
+mod main_widgets;
 mod searching;
 mod shortcuts;
 
@@ -102,7 +106,7 @@ fn activate(app: &Application) {
     outer_box.append(&entry);
     let search_results_window = ScrolledWindow::builder().vexpand(true).build();
 
-    let default_box = build_default_box(&shortcuts_display);
+    let default_box = build_main_widgets(&shortcuts_display);
     outer_box.append(&default_box);
 
     // TODO: check this, figure out how it works
@@ -266,101 +270,6 @@ fn activate(app: &Application) {
 
     // play starting animation
     start_fade.play();
-}
-
-fn build_default_box(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
-    let outer_box = Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .focusable(true)
-        .build();
-    // 2 rows inside
-    let top_row = Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .vexpand(true)
-        .hexpand(true)
-        .build();
-    let bottom_row = Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .hexpand(true)
-        .build();
-    outer_box.append(&top_row);
-    outer_box.append(&bottom_row);
-
-    let left_bar = Frame::builder().width_request(64).build();
-    let bottom_bar = Frame::builder()
-        // .orientation(gtk4::Orientation::Horizontal)
-        .height_request(64)
-        .hexpand(true)
-        .build();
-
-    let media_box = Frame::builder()
-        .width_request(300)
-        .height_request(200)
-        .build();
-    let notes_box = Frame::builder().width_request(400).build();
-
-    // populate two inner rows
-    top_row.append(&left_bar);
-    top_row.append(shortcuts_display.box_widget());
-    top_row.append(&notes_box);
-
-    bottom_row.append(&media_box);
-    bottom_row.append(&bottom_bar);
-
-    outer_box
-}
-
-fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
-    let list_box = ListBox::builder()
-        .activate_on_single_click(true)
-        .selection_mode(gtk4::SelectionMode::Single)
-        .show_separators(true)
-        .build();
-
-    for result in results {
-        let row = ListBoxRow::builder()
-            .selectable(true)
-            .activatable(true)
-            .action_name("wlshud.exec")
-            .action_target(&result.execute_command.to_variant())
-            .build();
-        const ROW_SPACING_MARGIN: i32 = 8;
-        let row_contents = Box::builder()
-            .orientation(gtk4::Orientation::Horizontal)
-            .margin_bottom(ROW_SPACING_MARGIN)
-            .margin_top(ROW_SPACING_MARGIN)
-            .margin_end(ROW_SPACING_MARGIN)
-            .margin_start(ROW_SPACING_MARGIN)
-            .vexpand(true)
-            .spacing(16)
-            .build();
-        let labels_box = Box::builder()
-            .orientation(gtk4::Orientation::Vertical)
-            .build();
-        let name_label = Label::new(Some(&result.name));
-        name_label.set_css_classes(&["title"]);
-        name_label.set_halign(gtk4::Align::Start);
-        let location_label = Label::new(result.location.to_str());
-        location_label.set_css_classes(&["subtitle"]);
-        location_label.set_halign(gtk4::Align::Start);
-        labels_box.append(&name_label);
-        labels_box.append(&location_label);
-
-        let icon = if let Some(path) = result.icon_path {
-            icon_from_name(&path)
-        } else {
-            Image::from_icon_name("folder")
-        };
-        icon.set_icon_size(gtk4::IconSize::Large);
-
-        row_contents.append(&icon);
-        row_contents.append(&labels_box);
-
-        row.set_child(Some(&row_contents));
-        list_box.append(&row);
-    }
-
-    list_box
 }
 
 pub fn icon_from_name(icon_name: &str) -> Image {
