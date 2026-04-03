@@ -105,16 +105,28 @@ pub fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
         let name_label = Label::new(Some(&result.name));
         name_label.set_css_classes(&["title"]);
         name_label.set_halign(gtk4::Align::Start);
-        let location_label = Label::new(result.location.to_str());
+        let file_path = result
+            .location
+            .to_str()
+            .expect("Invalid path from searches");
+        let location_label = Label::new(Some(file_path));
         location_label.set_css_classes(&["subtitle"]);
         location_label.set_halign(gtk4::Align::Start);
         labels_box.append(&name_label);
         labels_box.append(&location_label);
 
+        let create_shortcut_button = Button::builder()
+            .icon_name("plus-symbolic")
+            .action_name("wlshud.create-shortcut")
+            .action_target(&file_path.to_variant())
+            .halign(gtk4::Align::End)
+            .hexpand(true)
+            .build();
+
         let icon = if let Some(path) = result.icon_path {
             icon_from_name(&path)
         } else {
-            Image::from_icon_name("folder")
+            Image::from_icon_name("external-link-symbolic")
         };
         icon.set_icon_size(gtk4::IconSize::Large);
 

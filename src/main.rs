@@ -2,12 +2,16 @@ use std::{default, fs, io, process::Command};
 
 use directories::ProjectDirs;
 use gtk4::{
-    ApplicationWindow, Box, CssProvider, EventControllerKey, Frame, Image, Label, ListBox,
-    ListBoxRow, ScrolledWindow, SearchEntry, Widget,
-    gdk::Display,
+    ApplicationWindow, Box, CssProvider, EventControllerKey, Frame, IconTheme, Image, Label,
+    ListBox, ListBoxRow, Overlay, ScrolledWindow, SearchEntry, Widget,
+    gdk::{
+        Display,
+        prelude::{DisplayExt, MonitorExt},
+    },
     gio::{
         ActionEntry, SimpleActionGroup,
-        prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
+        prelude::{ActionGroupExt, ActionMapExtManual, ApplicationExt, ApplicationExtManual},
+        resources_register_include,
     },
     glib::{
         VariantTy, clone,
@@ -15,7 +19,11 @@ use gtk4::{
         user_config_dir,
         variant::ToVariant,
     },
-    prelude::{BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, WidgetExt},
+    prelude::{
+        BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, NativeExt, RootExt,
+        WidgetExt,
+    },
+    subclass::dialog,
 };
 use gtk4::{glib, prelude::EditableExt};
 use gtk4_layer_shell::LayerShell;
@@ -23,12 +31,13 @@ use libadwaita::{
     Application, CallbackAnimationTarget, Easing, TimedAnimation, prelude::AnimationExt,
 };
 
-use crate::{config::ConfigData, shortcuts::ShortcutsDisplay};
+use crate::{actions::build_actions, config::ConfigData, shortcuts::ShortcutsDisplay};
 use crate::{
     main_widgets::build_main_widgets,
     searching::{SearchDatabase, SearchResults, build_search_results},
 };
 
+mod actions;
 mod config;
 mod main_widgets;
 mod searching;
@@ -36,9 +45,10 @@ mod shortcuts;
 
 const APP_MARGIN: i32 = 32;
 const APP_ID: &str = "com.DrewCodesBadly.wlshud";
-const DEFAULT_CSS_STRING: &str = include_str!("default_style.css");
+const DEFAULT_CSS_STRING: &str = include_str!("nonrust/default_style.css");
 
-fn main() {
+fn main() -> glib::ExitCode {
+    let _ = resources_register_include!("wlshud.gresource");
     let app = libadwaita::Application::builder()
         .application_id(APP_ID)
         .build();
@@ -58,14 +68,17 @@ fn main() {
             //     let _ = fs::write(path, DEFAULT_CSS_STRING);
             // }
 
-            // provider.load_from_data(DEFAULT_CSS_STRING);
+            provider.load_from_data(DEFAULT_CSS_STRING);
         }
 
+        let display = Display::default().expect("No display connected.");
+        let theme = IconTheme::for_display(&display);
         gtk4::style_context_add_provider_for_display(
-            &Display::default().expect("No display connected."),
+            &display,
             &provider,
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
+        );
+        theme.add_resource_path("/wlshud/icons");
     });
     app.connect_activate(activate);
 
@@ -73,6 +86,8 @@ fn main() {
     app.set_accels_for_action("wlshud.close", &["Escape"]);
 
     app.run();
+
+    glib::ExitCode::SUCCESS
 }
 
 fn activate(app: &Application) {
@@ -104,6 +119,7 @@ fn activate(app: &Application) {
         .margin_start(APP_MARGIN)
         .build();
     outer_box.append(&entry);
+    let dialog_overlay = Overlay::builder().child(&outer_box).build();
     let search_results_window = ScrolledWindow::builder().vexpand(true).build();
 
     let default_box = build_main_widgets(&shortcuts_display);
@@ -152,56 +168,8 @@ fn activate(app: &Application) {
         .build();
 
     // Actions
-    let close_action = ActionEntry::builder("close")
-        .activate(clone!(
-            #[weak]
-            window,
-            #[strong]
-            start_fade,
-            move |_, _, _| {
-                // stop input
-                window.set_sensitive(false);
-
-                // start animation
-                start_fade.set_reverse(true);
-                start_fade.set_easing(Easing::EaseInCirc);
-                start_fade.play();
-
-                // close when done
-                start_fade.connect_done(move |_| {
-                    window.close();
-                });
-            }
-        ))
-        .build();
-    let exec_action = ActionEntry::builder("exec")
-        .parameter_type(Some(VariantTy::STRING_ARRAY))
-        .activate(clone!(
-            #[weak]
-            window,
-            move |_, _, parameter| {
-                if let Some(p) = parameter {
-                    if let Some(exec_list) = p.get::<Vec<String>>() {
-                        if exec_list.len() > 0 {
-                            let mut exec = exec_list.iter();
-                            let mut cmd = Command::new(&exec.next().unwrap());
-                            for arg in exec {
-                                cmd.arg(arg);
-                            }
-                            let _ = cmd.spawn();
-                            let _ = <ApplicationWindow as WidgetExt>::activate_action(
-                                &window,
-                                "wlshud.close",
-                                None,
-                            );
-                        }
-                    }
-                }
-            }
-        ))
-        .build();
     let actions = SimpleActionGroup::new();
-    actions.add_action_entries([close_action, exec_action]);
+    actions.add_action_entries(build_actions(&window, &start_fade, &dialog_overlay));
     window.insert_action_group("wlshud", Some(&actions));
 
     // Connect search bar to input handling
@@ -228,7 +196,6 @@ fn activate(app: &Application) {
             } else if entry.text().starts_with(' ') {
                 entry.set_text("");
                 default_box.grab_focus();
-                // todo: activate shortcuts
             } else {
                 let results = search_database.search(&entry.text().to_ascii_lowercase());
                 let results_display = build_search_results(results);
@@ -265,7 +232,7 @@ fn activate(app: &Application) {
             let _ = <ApplicationWindow as WidgetExt>::activate_action(window, "wlshud.close", None);
         }
     });
-    window.set_child(Some(&outer_box));
+    window.set_child(Some(&dialog_overlay));
     window.show();
 
     // play starting animation

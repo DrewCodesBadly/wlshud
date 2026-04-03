@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<gresources>
+<gresource prefix="/wlshud/icons">
+  <file preprocess="xml-stripblanks">external-link-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">folder-visiting-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">plus-symbolic.svg</file>
+</gresource>
+</gresources>

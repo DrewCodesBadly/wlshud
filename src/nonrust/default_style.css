@@ -1,0 +1,9 @@
+box.dialog-background {
+    background: #0000008f;
+}
+
+box.dialog-box {
+    background: #000000ff;
+    padding: 32px;
+    border-radius: 16px;
+}

@@ -1,7 +1,7 @@
-use std::{fs::read_to_string, io, path::PathBuf};
+use std::{fs::read_to_string, io, path::PathBuf, str::Chars};
 
 use directories::ProjectDirs;
-use gtk4::glib::user_config_dir;
+use gtk4::{Shortcut, glib::user_config_dir};
 use json::JsonValue;
 
 pub struct ConfigData {
@@ -11,17 +11,9 @@ pub struct ConfigData {
 impl Default for ConfigData {
     fn default() -> Self {
         // attempts to load config data first, then defaults
-        let shortcuts_path = shortcuts_file_path();
-        let shortucts_file = read_to_string(shortcuts_path)
-            .and_then(|s| json::parse(&s).map_err(|_| io::Error::other("Failed to parse JSON")));
-        let shortcuts_list = if let Ok(parsed) = shortucts_file {
-            println!("parsing");
-            parse_shortcuts_json(&parsed)
-        } else {
-            println!("cannot parse");
-            Vec::new()
-        };
-        Self { shortcuts_list }
+        Self {
+            shortcuts_list: load_shortcuts_from_config(),
+        }
     }
 }
 
@@ -37,6 +29,17 @@ pub struct ShortcutNode {
     pub exec: Option<Vec<String>>,
     pub children: Vec<ShortcutNode>,
     pub icon: Option<String>,
+}
+
+pub fn load_shortcuts_from_config() -> Vec<ShortcutNode> {
+    let shortcuts_path = shortcuts_file_path();
+    let shortucts_file = read_to_string(shortcuts_path)
+        .and_then(|s| json::parse(&s).map_err(|_| io::Error::other("Failed to parse JSON")));
+    if let Ok(parsed) = shortucts_file {
+        parse_shortcuts_json(&parsed)
+    } else {
+        Vec::new()
+    }
 }
 
 pub fn parse_shortcuts_json(data: &JsonValue) -> Vec<ShortcutNode> {
@@ -99,12 +102,36 @@ fn shortcut_array_to_json(shortcuts: &[ShortcutNode]) -> JsonValue {
             for cmd in exec {
                 let _ = exec_arr.push(JsonValue::String(cmd.to_owned()));
             }
+            obj["exec"] = exec_arr;
         }
 
         let _ = arr.push(obj);
     }
 
     arr
+}
+
+pub fn insert_shortcut_node(
+    char_path: &mut Chars,
+    to_insert: ShortcutNode,
+    into: &mut Vec<ShortcutNode>,
+) {
+    if let Some(c) = char_path.next() {
+        if let Some(n) = into.iter_mut().find(|n| n.character == c) {
+            insert_shortcut_node(char_path, to_insert, &mut n.children);
+        } else {
+            let mut new_node = ShortcutNode {
+                character: c,
+                exec: None,
+                children: Vec::new(),
+                icon: None,
+            };
+            insert_shortcut_node(char_path, to_insert, &mut new_node.children);
+            into.push(new_node);
+        }
+    } else {
+        into.push(to_insert);
+    }
 }
 
 fn wlshud_config_dir() -> PathBuf {
@@ -116,5 +143,11 @@ fn wlshud_config_dir() -> PathBuf {
 pub fn shortcuts_file_path() -> PathBuf {
     let mut dir = wlshud_config_dir();
     dir.push("shortcuts.json");
+    dir
+}
+
+pub fn notes_file_path() -> PathBuf {
+    let mut dir = wlshud_config_dir();
+    dir.push("notes.txt");
     dir
 }
