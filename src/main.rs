@@ -5,7 +5,7 @@ use gtk4::{
     ApplicationWindow, Box, CssProvider, EventControllerKey, Frame, IconTheme, Image, Label,
     ListBox, ListBoxRow, Overlay, ScrolledWindow, SearchEntry, Widget,
     gdk::{
-        Display,
+        Display, Key,
         prelude::{DisplayExt, MonitorExt},
     },
     gio::{
@@ -31,7 +31,10 @@ use libadwaita::{
     Application, CallbackAnimationTarget, Easing, TimedAnimation, prelude::AnimationExt,
 };
 
-use crate::{actions::build_actions, config::ConfigData, shortcuts::ShortcutsDisplay};
+use crate::{
+    actions::build_actions, config::ConfigData, searching::get_file_search_entries,
+    shortcuts::ShortcutsDisplay,
+};
 use crate::{
     main_widgets::build_main_widgets,
     searching::{SearchDatabase, SearchResults, build_search_results},
@@ -134,11 +137,23 @@ fn activate(app: &Application) {
         entry,
         move |_, key, _, _| {
             // Do not handle events if the search entry currently has focus.
-            if entry.has_focus() {
-                return glib::Propagation::Proceed;
-            }
-
-            if let Some(char) = key.to_unicode() {
+            let t = entry.text();
+            if key == Key::Tab && (t.starts_with('/') || t.starts_with('~')) {
+                let entries = get_file_search_entries(&t);
+                if let Some(e) = entries.first() {
+                    let new_t = format!(
+                        "{}/",
+                        e.location.to_str().expect("cannot convert path to string"),
+                    );
+                    entry.set_text(&new_t);
+                    entry.set_position(new_t.len() as i32);
+                    glib::Propagation::Stop
+                } else {
+                    glib::Propagation::Proceed
+                }
+            } else if entry.has_focus() {
+                glib::Propagation::Proceed
+            } else if let Some(char) = key.to_unicode() {
                 if shortcuts_display.handle_key_pressed(char) {
                     glib::Propagation::Stop
                 } else {
@@ -198,7 +213,7 @@ fn activate(app: &Application) {
                 entry.set_text("");
                 default_box.grab_focus();
             } else {
-                let results = search_database.search(&entry.text().to_ascii_lowercase());
+                let results = search_database.search(&entry.text());
                 let results_display = build_search_results(results);
                 // should always be true
                 if let Some(last_child) = outer_box.last_child() {
@@ -214,8 +229,14 @@ fn activate(app: &Application) {
     entry.connect_activate(clone!(
         #[weak]
         search_results_window,
-        move |_| {
-            if let Some(c) = search_results_window.child() {
+        move |entry| {
+            let t = entry.text();
+            // hacky workaround to open directories when you have the ending /
+            // since it makes tab autocomplete work as expected and kinda annoyed me
+            if t.ends_with('/') && (t.starts_with('/') || t.starts_with('~')) {
+                let _ = Command::new("xdg-open").arg(t).spawn();
+                let _ = entry.activate_action("wlshud.close", None);
+            } else if let Some(c) = search_results_window.child() {
                 // there's a GtkViewport in between these for some reason
                 c.first_child()
                     .and_downcast::<ListBox>()

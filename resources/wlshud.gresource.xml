@@ -4,5 +4,6 @@
   <file preprocess="xml-stripblanks">external-link-symbolic.svg</file>
   <file preprocess="xml-stripblanks">folder-visiting-symbolic.svg</file>
   <file preprocess="xml-stripblanks">plus-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">terminal-symbolic.svg</file>
 </gresource>
 </gresources>

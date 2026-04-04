@@ -7,11 +7,11 @@ use gtk4::{
     glib::{self, clone, ffi::g_main_context_wait, object::IsA, spawn_future_local},
     prelude::{BoxExt, TextBufferExt, TextViewExt},
 };
-use smithay_client_toolkit::data_device_manager::data_offer::receive;
 
 use crate::{config::notes_file_path, shortcuts::ShortcutsDisplay};
 
-const NOTES_BOX_SAVE_DELAY: Duration = Duration::from_millis(500);
+// currently set to 250 as that is the length of the close animation
+const NOTES_BOX_SAVE_DELAY: Duration = Duration::from_millis(250);
 
 pub fn build_main_widgets(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widget> {
     let outer_box = Box::builder()

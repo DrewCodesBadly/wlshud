@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use freedesktop_desktop_entry::{desktop_entries, get_languages_from_env};
 use gtk4::{
@@ -7,6 +11,7 @@ use gtk4::{
     prelude::{BoxExt, ListBoxRowExt, WidgetExt},
 };
 use rust_fuzzy_search::fuzzy_search_best_n;
+use skia_safe::textlayout::Paragraph;
 
 use crate::icon_from_name;
 
@@ -60,9 +65,20 @@ impl SearchDatabase {
     pub fn search(&self, query: &str) -> SearchResults {
         let mut search_results = SearchResults::new();
         if query.starts_with('/') || query.starts_with('~') {
+            let mut maybe_entries = get_file_search_entries(query);
+            search_results.append(&mut maybe_entries);
+        } else if query.starts_with('>') {
+            search_results.push(SearchResult {
+                icon_path: Some("terminal-symbolic".to_owned()),
+                name: "Run this command from the current working directory".to_owned(),
+                location: std::env::current_dir().expect("cannot get working directory"),
+                execute_command: query[1..].split(' ').map(|s| s.to_owned()).collect(),
+            });
         } else {
             let app_names = self.apps.keys().map(|s| s.as_str()).collect::<Vec<&str>>();
-            let results = fuzzy_search_best_n(&query, app_names.as_slice(), MAX_SEARCH_RESULTS);
+            let lower_search = query.to_ascii_lowercase();
+            let results =
+                fuzzy_search_best_n(&lower_search, app_names.as_slice(), MAX_SEARCH_RESULTS);
             for result in results {
                 // should be a guaranteed success
                 if let Some(app) = self.apps.get(result.0) {
@@ -139,4 +155,58 @@ pub fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
     }
 
     list_box
+}
+
+pub fn get_file_search_entries(query: &str) -> Vec<SearchResult> {
+    let mut maybe_entries = Vec::new();
+    let last_slash = query.rfind('/').unwrap_or(0);
+    let (mut path_str, mut file_portion) = if last_slash > 0 {
+        query.split_at(query.rfind('/').unwrap_or(0))
+    } else {
+        query.split_at(1)
+    };
+    if file_portion.starts_with('/') {
+        file_portion = &file_portion[1..];
+    }
+    let new_str = path_str.replacen(
+        '~',
+        std::env::home_dir()
+            .expect("user does not have a home directory")
+            .to_str()
+            .expect("bad path to home dir"),
+        1,
+    );
+    path_str = &new_str;
+    let files = fs::read_dir(path_str);
+    if let Ok(iter) = files {
+        for entry in iter {
+            if let Ok(f) = entry {
+                maybe_entries.push(SearchResult {
+                    icon_path: f.file_type().ok().and_then(|t| {
+                        if t.is_dir() {
+                            Some("folder".to_owned())
+                        } else {
+                            None
+                        }
+                    }),
+                    name: f
+                        .file_name()
+                        .into_string()
+                        .unwrap_or("Corrupt File".to_owned()),
+                    location: f.path(),
+                    execute_command: vec![
+                        "xdg-open".to_owned(),
+                        format!("{}/{}", path_str, f.file_name().display()),
+                    ],
+                });
+            }
+        }
+        maybe_entries = maybe_entries
+            .iter()
+            .filter(|e| e.name.starts_with(file_portion))
+            .cloned()
+            .collect();
+        maybe_entries.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+    maybe_entries
 }
