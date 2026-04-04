@@ -109,6 +109,7 @@ fn activate(app: &Application) {
     let entry = SearchEntry::builder()
         .hexpand(true)
         .valign(gtk4::Align::Start)
+        .placeholder_text("Search for applications...")
         .build();
 
     let outer_box = Box::builder()
@@ -164,7 +165,7 @@ fn activate(app: &Application) {
         .widget(&window)
         .target(&opacity_target)
         .easing(Easing::EaseOutCirc)
-        .duration(300)
+        .duration(250)
         .build();
 
     // Actions

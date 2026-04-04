@@ -2,7 +2,7 @@ use std::process::Command;
 
 use freedesktop_desktop_entry::{DesktopEntry, get_languages_from_env};
 use gtk4::{
-    ApplicationWindow, Button, Entry, Label, Overlay, Separator, Widget,
+    ApplicationWindow, Button, Entry, InputHints, Label, Overlay, Separator, Widget,
     gio::{ActionEntry, SimpleActionGroup, prelude::ListModelExtManual},
     glib::{self, VariantTy, clone, object::IsA},
     prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt},
@@ -111,7 +111,9 @@ fn build_create_shortcut_overlay(file_path: String, overlay: &Overlay) -> impl I
         .label(format!("Adding shortcut for {}", &file_path))
         .css_classes(["title"])
         .build();
-    let path_entry = Entry::builder().build();
+    let path_entry = Entry::builder()
+        .placeholder_text("Type out the letters that will activate this shortcut...")
+        .build();
     let finish_button = Button::builder()
         .label("Add Shortcut")
         .css_classes(["suggested-action"])
@@ -124,7 +126,7 @@ fn build_create_shortcut_overlay(file_path: String, overlay: &Overlay) -> impl I
         base,
         #[weak]
         overlay,
-        move |button| {
+        move |_| {
             let mut character_path = path_entry.text().trim().to_owned();
             if character_path.len() == 0 {
                 return;

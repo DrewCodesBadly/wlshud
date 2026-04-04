@@ -1,4 +1,9 @@
-use std::{fs::read_to_string, io, path::PathBuf, str::Chars};
+use std::{
+    fs::{create_dir, read_to_string},
+    io,
+    path::PathBuf,
+    str::Chars,
+};
 
 use directories::ProjectDirs;
 use gtk4::{Shortcut, glib::user_config_dir};
@@ -137,6 +142,9 @@ pub fn insert_shortcut_node(
 fn wlshud_config_dir() -> PathBuf {
     let mut dir = user_config_dir();
     dir.push("wlshud");
+    if !dir.exists() {
+        let _ = create_dir(&dir);
+    }
     dir
 }
 
