@@ -141,10 +141,14 @@ fn activate(app: &Application) {
             if key == Key::Tab && (t.starts_with('/') || t.starts_with('~')) {
                 let entries = get_file_search_entries(&t);
                 if let Some(e) = entries.first() {
-                    let new_t = format!(
-                        "{}/",
-                        e.location.to_str().expect("cannot convert path to string"),
-                    );
+                    let mut new_t = e
+                        .location
+                        .to_str()
+                        .expect("cannot convert path to string")
+                        .to_owned();
+                    if !e.location.is_file() {
+                        new_t.push('/');
+                    }
                     entry.set_text(&new_t);
                     entry.set_position(new_t.len() as i32);
                     glib::Propagation::Stop

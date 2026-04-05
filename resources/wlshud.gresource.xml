@@ -5,5 +5,13 @@
   <file preprocess="xml-stripblanks">folder-visiting-symbolic.svg</file>
   <file preprocess="xml-stripblanks">plus-symbolic.svg</file>
   <file preprocess="xml-stripblanks">terminal-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">editor-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">music-note-single-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">cross-large-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">speaker-0-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">skip-forward-large-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">skip-backward-large-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">play-symbolic.svg</file>
+  <file preprocess="xml-stripblanks">pause-symbolic.svg</file>
 </gresource>
 </gresources>

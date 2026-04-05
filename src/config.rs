@@ -139,6 +139,57 @@ pub fn insert_shortcut_node(
     }
 }
 
+pub fn delete_shortcut_node(char_path: &mut Chars, from: &mut Vec<ShortcutNode>) {
+    // Will silently fail if passed an empty Chars
+    if let Some(c) = char_path.next() {
+        let mut remove_idx = None;
+        println!("Running recursive delete, at char {}", c);
+        if let Some((idx, n)) = from.iter_mut().enumerate().find(|(_, n)| n.character == c) {
+            println!("Found a valid child node");
+            let next = char_path.next();
+            if let Some(c2) = next {
+                delete_shortcut_node_recursion(char_path, &mut n.children, c2);
+            } else {
+                println!("No remaining, setting remove_idx");
+                remove_idx = Some(idx);
+            }
+        }
+
+        if let Some(idx) = remove_idx {
+            println!("Removing index {}", idx);
+            from.remove(idx);
+        }
+    }
+}
+
+fn delete_shortcut_node_recursion(
+    char_path: &mut Chars,
+    from: &mut Vec<ShortcutNode>,
+    current_char: char,
+) {
+    let mut remove_idx = None;
+    println!("Running recursive delete, at char {}", current_char);
+    if let Some((idx, n)) = from
+        .iter_mut()
+        .enumerate()
+        .find(|(_, n)| n.character == current_char)
+    {
+        println!("Found a valid child node");
+        let next = char_path.next();
+        if let Some(c2) = next {
+            delete_shortcut_node_recursion(char_path, &mut n.children, c2);
+        } else {
+            println!("No remaining, setting remove_idx");
+            remove_idx = Some(idx);
+        }
+    }
+
+    if let Some(idx) = remove_idx {
+        println!("Removing index {}", idx);
+        from.remove(idx);
+    }
+}
+
 fn wlshud_config_dir() -> PathBuf {
     let mut dir = user_config_dir();
     dir.push("wlshud");
@@ -158,4 +209,22 @@ pub fn notes_file_path() -> PathBuf {
     let mut dir = wlshud_config_dir();
     dir.push("notes.txt");
     dir
+}
+
+// this is kinda slow so don't use it if performance is super important
+pub fn flatten_shortcuts_list(
+    list: &[ShortcutNode],
+    previous_chars: &str,
+) -> Vec<(String, ShortcutNode)> {
+    let mut flat_vec = Vec::new();
+
+    for node in list {
+        let new_chars = format!("{}{}", previous_chars, node.character);
+        flat_vec.append(&mut flatten_shortcuts_list(&node.children, &new_chars));
+        flat_vec.push((new_chars, node.clone()));
+    }
+
+    flat_vec.sort_by(|a, b| a.0.cmp(&b.0));
+
+    flat_vec
 }
