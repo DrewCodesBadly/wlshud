@@ -119,7 +119,6 @@ pub fn build_search_results(results: SearchResults) -> impl IsA<Widget> {
             .orientation(gtk4::Orientation::Vertical)
             .build();
         let name_label = Label::new(Some(&result.name));
-        name_label.set_css_classes(&["title"]);
         name_label.set_halign(gtk4::Align::Start);
         let file_path = result
             .location

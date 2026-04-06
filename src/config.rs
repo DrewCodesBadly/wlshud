@@ -211,6 +211,12 @@ pub fn notes_file_path() -> PathBuf {
     dir
 }
 
+pub fn css_file_path() -> PathBuf {
+    let mut dir = wlshud_config_dir();
+    dir.push("style.css");
+    dir
+}
+
 // this is kinda slow so don't use it if performance is super important
 pub fn flatten_shortcuts_list(
     list: &[ShortcutNode],

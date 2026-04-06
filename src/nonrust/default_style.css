@@ -1,40 +1,103 @@
+/* Nord-styled example CSS to start from */
+
+/* Colors */
+:root {
+    --night1: #2e3440;
+    --night1-translucent: #2e3440af;
+    --night2: #3b4252;
+    --night3: #434c5e;
+    --night4: #4c566a;
+
+    --snow1: #d8dee9;
+    --snow2: #e5e9f0;
+    --snow3: #eceff4;
+
+    --frost1: #8fbcbb;
+    --frost2: #88c0d0;
+    --frost3: #81a1c1;
+    --frost4: #5e81ac;
+
+    --aurora1: #bf616a;
+    --aurora2: #d08770;
+    --aurora3: #ebcb8b;
+    --aurora4: #a3be8c;
+    --aurora5: #b48ead;
+}
+
+window {
+    background: var(--night1-translucent);
+}
+
 box.dialog-background {
-    background: #0000008f;
+    background: var(--night1-translucent);
 }
 box.dialog-box {
-    background: #000000ff;
+    background: var(--night2);
     padding: 32px;
     border-radius: 16px;
 }
 textview.view {
     padding: 16px;
     border-radius: 16px;
+    background: transparent;
 }
 frame {
+    border: 2px solid var(--frost4);
+    background: linear-gradient(to bottom, var(--night3), var(--night2));
 }
 button {
+    background: linear-gradient(to right bottom, var(--frost3), var(--frost4));
+}
+button:hover {
+    background: linear-gradient(to right bottom, var(--frost1), var(--frost2));
+}
+button:active {
+    background: linear-gradient(to right bottom, var(--snow1), var(--frost1));
+    /*background: var(--frost1);*/
 }
 button.suggested-action {
+    /* Make suggested actions more noticeable */
+    background: linear-gradient(to right, var(--aurora5), var(--aurora5));
+}
+button.suggested-action:hover {
+    /* Make suggested actions more noticeable */
+    background: linear-gradient(to right, var(--frost2), var(--aurora5));
+}
+button.suggested-action:active {
+    /* Make suggested actions more noticeable */
+    background: linear-gradient(to right, var(--frost2), var(--frost2));
 }
 label {
+    color: var(--snow3); /* Default label color */
 }
 label.title {
+    font-weight: bold;
+    font-size: 18pt;
+    color: var(--snow3);
 }
 label.subtitle {
+    color: var(--snow1);
+    font-style: italic;
 }
 entry {
+    color: var(--snow3);
+    background: var(--night4);
 }
 entry.search {
+    color: var(--snow3);
+    background: linear-gradient(to right, var(--night4), var(--night1));
+    font-size: 12pt;
+    padding: 4px;
 }
 list {
+    color: var(--snow3);
+    background-color: transparent;
 }
 list.separators {
+    color: var(--snow3);
 }
 separator {
-}
-separator.horizontal {
-}
-separator.vertical {
-}
-image {
+    /* Add a Nord color gradient for horizontal separators */
+    color: var(--snow3);
+    border-radius: 6px;
 }

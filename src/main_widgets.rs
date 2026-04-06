@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, hash::Hash, process::Command, thread, time::Duration};
 
 use gtk4::{
-    Box, Button, Frame, Image, Label, Overlay, ScrolledWindow, TextIter, TextView, Widget,
+    Box, Button, Frame, Image, Label, Overlay, Picture, ScrolledWindow, TextIter, TextView, Widget,
     builders::ScrolledWindowBuilder,
     gio::{self, spawn_blocking},
     glib::{self, clone, ffi::g_main_context_wait, object::IsA, spawn_future_local},
@@ -69,7 +69,8 @@ pub fn build_main_widgets(shortcuts_display: &ShortcutsDisplay) -> impl IsA<Widg
 
     let media_box = build_media_box();
 
-    let notes_box = build_notes_box();
+    let notes_view = build_notes_box();
+    let notes_box = Frame::builder().child(&notes_view).build();
 
     // populate two inner rows
     top_row.append(&left_bar);
@@ -125,6 +126,7 @@ fn build_media_box() -> impl IsA<Widget> {
         .icon_name("speaker-0-symbolic")
         .height_request(128)
         .width_request(128)
+        .pixel_size(128)
         .icon_size(gtk4::IconSize::Large)
         .build();
     let outer_box = Box::builder()

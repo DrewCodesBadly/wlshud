@@ -1,4 +1,8 @@
-use std::{default, fs, io, process::Command};
+use std::{
+    default, fs,
+    io::{self, Write},
+    process::Command,
+};
 
 use directories::ProjectDirs;
 use gtk4::{
@@ -32,7 +36,9 @@ use libadwaita::{
 };
 
 use crate::{
-    actions::build_actions, config::ConfigData, searching::get_file_search_entries,
+    actions::build_actions,
+    config::{ConfigData, css_file_path},
+    searching::get_file_search_entries,
     shortcuts::ShortcutsDisplay,
 };
 use crate::{
@@ -55,25 +61,20 @@ fn main() -> glib::ExitCode {
     let app = libadwaita::Application::builder()
         .application_id(APP_ID)
         .build();
-    // startup tasks (loading css)
+    // startup tasks
     app.connect_startup(|_| {
         let provider = CssProvider::new();
 
-        // should just be .config/wlshud but yknow might as well wrap it nicely
-        let mut path = user_config_dir();
-        path.push("style.css");
+        // Handle loading CSS
+        let path = css_file_path();
         if let Ok(css) = fs::read_to_string(&path) {
             provider.load_from_data(&css);
         } else {
-            // TODO: Uncomment
-            // Not doing this yet to make testing default css easier.
-            // if fs::create_dir_all(&path).is_ok() {
-            //     let _ = fs::write(path, DEFAULT_CSS_STRING);
-            // }
-
+            let _ = fs::write(path, DEFAULT_CSS_STRING);
             provider.load_from_data(DEFAULT_CSS_STRING);
         }
 
+        // load icons
         let display = Display::default().expect("No display connected.");
         let theme = IconTheme::for_display(&display);
         gtk4::style_context_add_provider_for_display(

@@ -341,8 +341,16 @@ fn build_add_command_shortcut_overlay(overlay: &Overlay) -> impl IsA<Widget> {
     let cmd_entry = Entry::builder().build();
     let finish_button = Button::builder()
         .label("Add Shortcut")
-        .css_classes(["suggested-action", "disabled"])
+        .css_classes(["suggested-action"])
         .build();
+    let cancel_button = Button::builder().label("Cancel").build();
+    let buttons_row = Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(8)
+        .homogeneous(true)
+        .build();
+    buttons_row.append(&finish_button);
+    buttons_row.append(&cancel_button);
 
     finish_button.connect_clicked(clone!(
         #[weak]
@@ -383,6 +391,16 @@ fn build_add_command_shortcut_overlay(overlay: &Overlay) -> impl IsA<Widget> {
             overlay.remove_overlay(&base);
         }
     ));
+    cancel_button.connect_clicked(clone!(
+        #[weak]
+        base,
+        #[weak]
+        overlay,
+        move |_| {
+            // close overlay
+            overlay.remove_overlay(&base);
+        }
+    ));
 
     center_box.append(&title);
     center_box.append(&Separator::new(gtk4::Orientation::Horizontal));
@@ -392,7 +410,7 @@ fn build_add_command_shortcut_overlay(overlay: &Overlay) -> impl IsA<Widget> {
     center_box.append(&icon_entry);
     center_box.append(&cmd_entry_label);
     center_box.append(&cmd_entry);
-    center_box.append(&finish_button);
+    center_box.append(&buttons_row);
 
     base
 }
