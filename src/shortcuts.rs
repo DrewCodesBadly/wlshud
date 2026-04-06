@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 
 use gtk4::{
-    Box, Image, Label, Widget,
-    glib::{object::IsA, property::PropertySet, variant::ToVariant},
+    Box, Image, Label,
+    glib::{self, property::PropertySet, variant::ToVariant},
     prelude::{BoxExt, WidgetExt},
 };
+use libadwaita::{CallbackAnimationTarget, Easing, TimedAnimation, prelude::AnimationExt};
 
 use crate::{config::ShortcutNode, icon_from_name};
 
@@ -61,8 +62,25 @@ impl ShortcutsDisplay {
         drop(cur_nodes);
         if let Some(node) = swap_node {
             let row = build_shortcuts_row(&node.children);
+            // Start an animation
+            let fade_in_target = CallbackAnimationTarget::new(gtk4::glib::clone!(
+                #[weak]
+                row,
+                move |val| {
+                    row.set_opacity(val);
+                }
+            ));
+            let fade_in = TimedAnimation::builder()
+                .value_from(0.0)
+                .value_to(1.0)
+                .easing(Easing::EaseOutSine)
+                .widget(&row)
+                .target(&fade_in_target)
+                .duration(150)
+                .build();
             self.outer_box.append(&row);
             self.current_nodes.set(node.children.clone());
+            fade_in.play();
             true
         } else {
             false
@@ -74,8 +92,8 @@ impl ShortcutsDisplay {
     }
 }
 
-fn build_shortcuts_row(nodes: &[ShortcutNode]) -> impl IsA<Widget> {
-    let row = gtk4::Box::builder()
+fn build_shortcuts_row(nodes: &[ShortcutNode]) -> Box {
+    let row = Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .hexpand(true)
         .homogeneous(true)
