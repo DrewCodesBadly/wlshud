@@ -1,33 +1,16 @@
-use std::{
-    default, fs,
-    io::{self, Write},
-    process::Command,
-};
+use std::{fs, process::Command};
 
-use directories::ProjectDirs;
 use gtk4::{
-    ApplicationWindow, Box, CssProvider, EventControllerKey, Frame, IconTheme, Image, Label,
-    ListBox, ListBoxRow, Overlay, ScrolledWindow, SearchEntry, Widget,
-    gdk::{
-        Display, Key,
-        prelude::{DisplayExt, MonitorExt},
-    },
+    ApplicationWindow, Box, CssProvider, EventControllerKey, IconTheme, Image, ListBox, Overlay,
+    ScrolledWindow, SearchEntry,
+    gdk::{Display, Key},
     gio::{
-        ActionEntry, SimpleActionGroup,
-        prelude::{ActionGroupExt, ActionMapExtManual, ApplicationExt, ApplicationExtManual},
+        SimpleActionGroup,
+        prelude::{ActionMapExtManual, ApplicationExt, ApplicationExtManual},
         resources_register_include,
     },
-    glib::{
-        VariantTy, clone,
-        object::{CastNone, IsA},
-        user_config_dir,
-        variant::ToVariant,
-    },
-    prelude::{
-        BoxExt, FrameExt, GtkApplicationExt, GtkWindowExt, ListBoxRowExt, NativeExt, RootExt,
-        WidgetExt,
-    },
-    subclass::dialog,
+    glib::{clone, object::CastNone},
+    prelude::{BoxExt, GtkApplicationExt, GtkWindowExt, WidgetExt},
 };
 use gtk4::{glib, prelude::EditableExt};
 use gtk4_layer_shell::LayerShell;
@@ -43,7 +26,7 @@ use crate::{
 };
 use crate::{
     main_widgets::build_main_widgets,
-    searching::{SearchDatabase, SearchResults, build_search_results},
+    searching::{SearchDatabase, build_search_results},
 };
 
 mod actions;
@@ -272,6 +255,6 @@ pub fn icon_from_name(icon_name: &str) -> Image {
     if icon_name.starts_with('/') || icon_name.starts_with('~') {
         Image::from_file(icon_name)
     } else {
-        Image::from_icon_name(&icon_name)
+        Image::from_icon_name(icon_name)
     }
 }

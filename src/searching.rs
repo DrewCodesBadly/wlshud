@@ -1,17 +1,12 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use freedesktop_desktop_entry::{desktop_entries, get_languages_from_env};
 use gtk4::{
-    Box, Button, Image, Label, ListBox, ListBoxRow, MenuButton, Popover, Widget,
+    Box, Button, Image, Label, ListBox, ListBoxRow, Widget,
     glib::{object::IsA, variant::ToVariant},
     prelude::{BoxExt, ListBoxRowExt, WidgetExt},
 };
 use rust_fuzzy_search::fuzzy_search_best_n;
-use skia_safe::textlayout::Paragraph;
 
 use crate::icon_from_name;
 
@@ -67,12 +62,12 @@ impl SearchDatabase {
         if query.starts_with('/') || query.starts_with('~') {
             let mut maybe_entries = get_file_search_entries(query);
             search_results.append(&mut maybe_entries);
-        } else if query.starts_with('>') {
+        } else if let Some(q) = query.strip_prefix('>') {
             search_results.push(SearchResult {
                 icon_path: Some("terminal-symbolic".to_owned()),
                 name: "Run this command from the current working directory".to_owned(),
                 location: std::env::current_dir().expect("cannot get working directory"),
-                execute_command: query[1..].split(' ').map(|s| s.to_owned()).collect(),
+                execute_command: q.split(' ').map(|s| s.to_owned()).collect(),
             });
         } else {
             let app_names = self.apps.keys().map(|s| s.as_str()).collect::<Vec<&str>>();
@@ -178,27 +173,25 @@ pub fn get_file_search_entries(query: &str) -> Vec<SearchResult> {
     path_str = &new_str;
     let files = fs::read_dir(path_str);
     if let Ok(iter) = files {
-        for entry in iter {
-            if let Ok(f) = entry {
-                maybe_entries.push(SearchResult {
-                    icon_path: f.file_type().ok().and_then(|t| {
-                        if t.is_dir() {
-                            Some("folder".to_owned())
-                        } else {
-                            None
-                        }
-                    }),
-                    name: f
-                        .file_name()
-                        .into_string()
-                        .unwrap_or("Corrupt File".to_owned()),
-                    location: f.path(),
-                    execute_command: vec![
-                        "xdg-open".to_owned(),
-                        format!("{}/{}", path_str, f.file_name().display()),
-                    ],
-                });
-            }
+        for entry in iter.flatten() {
+            maybe_entries.push(SearchResult {
+                icon_path: entry.file_type().ok().and_then(|t| {
+                    if t.is_dir() {
+                        Some("folder".to_owned())
+                    } else {
+                        None
+                    }
+                }),
+                name: entry
+                    .file_name()
+                    .into_string()
+                    .unwrap_or("Corrupt File".to_owned()),
+                location: entry.path(),
+                execute_command: vec![
+                    "xdg-open".to_owned(),
+                    format!("{}/{}", path_str, entry.file_name().display()),
+                ],
+            });
         }
         maybe_entries = maybe_entries
             .iter()

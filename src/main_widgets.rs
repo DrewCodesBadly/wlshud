@@ -1,14 +1,12 @@
-use std::{collections::HashMap, fs, hash::Hash, process::Command, thread, time::Duration};
+use std::{collections::HashMap, fs, process::Command, time::Duration};
 
 use gtk4::{
-    Box, Button, Frame, Image, Label, Overlay, Picture, ScrolledWindow, TextIter, TextView, Widget,
-    builders::ScrolledWindowBuilder,
-    gio::{self, spawn_blocking},
-    glib::{self, clone, ffi::g_main_context_wait, object::IsA, spawn_future_local},
-    prelude::{BoxExt, ButtonExt, TextBufferExt, TextViewExt, WidgetExt},
+    Box, Button, Frame, Image, Label, ScrolledWindow, TextView, Widget,
+    glib::{self, clone, object::IsA, spawn_future_local},
+    prelude::{BoxExt, ButtonExt, TextBufferExt, TextViewExt},
 };
 
-use crate::{config::notes_file_path, icon_from_name, shortcuts::ShortcutsDisplay};
+use crate::{config::notes_file_path, shortcuts::ShortcutsDisplay};
 
 // currently set to 250 as that is the length of the close animation
 const NOTES_BOX_SAVE_DELAY: Duration = Duration::from_millis(250);
@@ -228,11 +226,9 @@ fn build_media_box() -> impl IsA<Widget> {
                                 }
                                 // gtk won't handle URLs so we do this instead. works with firefox media player so hey
                                 if let Some(url) = metadata.get("artUrl")
-                                    && url.starts_with("file://")
+                                    && let Some(stripped_url) = url.strip_prefix("file://")
                                 {
-                                    if url.starts_with("file://") {
-                                        img.set_from_file(Some(&url[7..]));
-                                    }
+                                    img.set_from_file(Some(stripped_url));
                                 } else {
                                     img.set_icon_name(Some("music-note-single-symbolic"));
                                 }
@@ -295,16 +291,16 @@ fn build_media_box() -> impl IsA<Widget> {
 fn fetch_playerctl_metadata() -> HashMap<String, String> {
     let mut map = HashMap::new();
     let metadata_result = Command::new("playerctl").arg("metadata").output();
-    if let Ok(output) = metadata_result {
-        if let Ok(s) = String::from_utf8(output.stdout) {
-            for (k, v) in s.lines().map(|l| {
-                let start_cut = &l[l.find(':').map(|i| i + 1).unwrap_or(0)..];
-                // if this 'find' fails the output is just bad :/
-                let (left, right) = start_cut.split_at(start_cut.find(' ').unwrap_or(0));
-                (left.trim().to_owned(), right.trim().to_owned())
-            }) {
-                map.insert(k, v);
-            }
+    if let Ok(output) = metadata_result
+        && let Ok(s) = String::from_utf8(output.stdout)
+    {
+        for (k, v) in s.lines().map(|l| {
+            let start_cut = &l[l.find(':').map(|i| i + 1).unwrap_or(0)..];
+            // if this 'find' fails the output is just bad :/
+            let (left, right) = start_cut.split_at(start_cut.find(' ').unwrap_or(0));
+            (left.trim().to_owned(), right.trim().to_owned())
+        }) {
+            map.insert(k, v);
         }
     }
 

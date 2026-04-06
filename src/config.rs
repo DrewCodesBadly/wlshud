@@ -5,8 +5,7 @@ use std::{
     str::Chars,
 };
 
-use directories::ProjectDirs;
-use gtk4::{Shortcut, glib::user_config_dir};
+use gtk4::glib::user_config_dir;
 use json::JsonValue;
 
 pub struct ConfigData {
@@ -68,7 +67,7 @@ pub fn parse_shortcuts_json(data: &JsonValue) -> Vec<ShortcutNode> {
                 continue;
             }
             let char_str = character_data.to_string();
-            if char_str.len() == 0 {
+            if char_str.is_empty() {
                 continue;
             }
             let children = parse_shortcuts_json(&member["children"]);

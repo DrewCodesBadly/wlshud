@@ -1,17 +1,20 @@
 use std::{cell::RefCell, process::Command, rc::Rc};
 
 use freedesktop_desktop_entry::{DesktopEntry, get_languages_from_env};
+// For some reason prelude::ListModelExtManual is making glib::clone! usable
+// although it it listed as an unused import. What?
+#[allow(unused_imports)]
+use gtk4::prelude::ListModelExtManual;
 use gtk4::{
-    ApplicationWindow, Box, Button, Entry, InputHints, Label, Overlay, ScrolledWindow, Separator,
-    Widget,
-    gio::{ActionEntry, SimpleActionGroup, prelude::ListModelExtManual},
+    ApplicationWindow, Box, Button, Entry, Label, Overlay, ScrolledWindow, Separator, Widget,
+    gio::{ActionEntry, SimpleActionGroup},
     glib::{self, VariantTy, clone, object::IsA},
     prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt},
 };
-use libadwaita::{Easing, TimedAnimation, ffi::AdwAnimation, prelude::AnimationExt};
+use libadwaita::{Easing, TimedAnimation, prelude::AnimationExt};
 
 use crate::config::{
-    ConfigData, ShortcutNode, delete_shortcut_node, flatten_shortcuts_list, insert_shortcut_node,
+    ShortcutNode, delete_shortcut_node, flatten_shortcuts_list, insert_shortcut_node,
     load_shortcuts_from_config, save_shortcuts_json,
 };
 
@@ -49,22 +52,21 @@ pub fn build_actions(
                 #[weak]
                 window,
                 move |_, _, parameter| {
-                    if let Some(p) = parameter {
-                        if let Some(exec_list) = p.get::<Vec<String>>() {
-                            if exec_list.len() > 0 {
-                                let mut exec = exec_list.iter();
-                                let mut cmd = Command::new(&exec.next().unwrap());
-                                for arg in exec {
-                                    cmd.arg(arg);
-                                }
-                                let _ = cmd.spawn();
-                                let _ = <ApplicationWindow as WidgetExt>::activate_action(
-                                    &window,
-                                    "wlshud.close",
-                                    None,
-                                );
-                            }
+                    if let Some(p) = parameter
+                        && let Some(exec_list) = p.get::<Vec<String>>()
+                        && !exec_list.is_empty()
+                    {
+                        let mut exec = exec_list.iter();
+                        let mut cmd = Command::new(exec.next().unwrap());
+                        for arg in exec {
+                            cmd.arg(arg);
                         }
+                        let _ = cmd.spawn();
+                        let _ = <ApplicationWindow as WidgetExt>::activate_action(
+                            &window,
+                            "wlshud.close",
+                            None,
+                        );
                     }
                 }
             ))
@@ -75,12 +77,11 @@ pub fn build_actions(
                 #[weak]
                 overlay,
                 move |_, _, parameter| {
-                    if let Some(p) = parameter {
-                        if let Some(file_path) = p.get::<String>() {
-                            // Builds the overlay to show
-                            overlay
-                                .add_overlay(&build_create_shortcut_overlay(file_path, &overlay));
-                        }
+                    if let Some(p) = parameter
+                        && let Some(file_path) = p.get::<String>()
+                    {
+                        // Builds the overlay to show
+                        overlay.add_overlay(&build_create_shortcut_overlay(file_path, &overlay));
                     }
                 }
             ))
@@ -109,12 +110,11 @@ pub fn build_actions(
 }
 
 fn build_overlay_base() -> gtk4::CenterBox {
-    let outer_box = gtk4::CenterBox::builder()
+    gtk4::CenterBox::builder()
         .hexpand(true)
         .vexpand(true)
         .css_classes(["dialog-background"])
-        .build();
-    outer_box
+        .build()
 }
 
 fn build_create_shortcut_overlay(file_path: String, overlay: &Overlay) -> impl IsA<Widget> {
@@ -152,7 +152,7 @@ fn build_create_shortcut_overlay(file_path: String, overlay: &Overlay) -> impl I
         overlay,
         move |_| {
             let mut character_path = path_entry.text().trim().to_owned();
-            if character_path.len() == 0 {
+            if character_path.is_empty() {
                 return;
             }
             let last_char = character_path.pop().unwrap();
@@ -212,7 +212,7 @@ fn build_remove_shortcuts_overlay(overlay: &Overlay) -> impl IsA<Widget> {
         .label("Remove shortcuts")
         .css_classes(["title"])
         .build();
-    let path_entry = Entry::builder()
+    let _path_entry = Entry::builder()
         .placeholder_text("Type out the letters that will activate this shortcut...")
         .build();
     let finish_button = Button::builder()
@@ -365,7 +365,7 @@ fn build_add_command_shortcut_overlay(overlay: &Overlay) -> impl IsA<Widget> {
         overlay,
         move |_| {
             let mut character_path = path_entry.text().trim().to_owned();
-            if character_path.len() == 0 {
+            if character_path.is_empty() {
                 return;
             }
             let last_char = character_path.pop().unwrap();

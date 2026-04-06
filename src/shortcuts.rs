@@ -51,7 +51,7 @@ impl ShortcutsDisplay {
                         "wlshud.exec",
                         Some(&exec.to_variant()),
                     );
-                } else if child.children.len() > 0 {
+                } else if !child.children.is_empty() {
                     // Activate children
                     swap_node = Some(child.clone());
                 }
