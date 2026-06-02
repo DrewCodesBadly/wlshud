@@ -200,8 +200,10 @@ fn build_media_box() -> impl IsA<Widget> {
                     match string_output {
                         Ok(s) => {
                             // "Playing" or "Paused"
-                            if s.starts_with("P") {
-                                let metadata = fetch_playerctl_metadata();
+                            // Lately it's started saying "Paused" while no players run
+                            // so this logic needed to be edited a bit.
+                            let metadata = fetch_playerctl_metadata();
+                            if s.starts_with("P") && !metadata.is_empty() {
                                 title_label.set_text(
                                     metadata
                                         .get("title")
