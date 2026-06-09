@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, process::Command, time::Duration};
 use gtk4::{
     Box, Button, Frame, Image, Label, ScrolledWindow, TextView, Widget,
     glib::{self, clone, object::IsA, spawn_future_local},
-    prelude::{BoxExt, ButtonExt, TextBufferExt, TextViewExt},
+    prelude::{BoxExt, ButtonExt, TextBufferExt, TextViewExt, WidgetExt},
 };
 
 use crate::{config::notes_file_path, shortcuts::ShortcutsDisplay};
@@ -163,11 +163,13 @@ fn build_media_box() -> impl IsA<Widget> {
     let title_label = Label::builder()
         .label("No media playing")
         .overflow(gtk4::Overflow::Hidden)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
         .max_width_chars(MAX_LABEL_SIZE)
         .build();
     let artist_label = Label::builder()
         .label("")
         .max_width_chars(MAX_LABEL_SIZE)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
         .build();
     title_labels_box.append(&title_label);
     title_labels_box.append(&artist_label);
@@ -204,12 +206,10 @@ fn build_media_box() -> impl IsA<Widget> {
                             // so this logic needed to be edited a bit.
                             let metadata = fetch_playerctl_metadata();
                             if s.starts_with("P") && !metadata.is_empty() {
-                                title_label.set_text(
-                                    metadata
-                                        .get("title")
-                                        // stupid jank strings
-                                        .unwrap_or(&"Untitled".to_owned()),
-                                );
+                                let t = metadata.get("title");
+                                title_label.set_text(t.unwrap_or(&"Untitled".to_owned()));
+                                title_label
+                                    .set_tooltip_text(Some(t.unwrap_or(&"Untitled".to_owned())));
                                 if let Some(album) = metadata.get("album").filter(|s| !s.is_empty())
                                 {
                                     artist_label.set_text(&format!(
